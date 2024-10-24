@@ -1,0 +1,81 @@
+# Development
+
+### 1. Setting Up Your IDE
+
+1. Open the project in Android Studio or IntelliJ IDEA
+2. Sync Gradle files
+3. Ensure the Kotlin plugin is enabled
+4. Set up your run configurations:
+   ```bash
+   # For basic build
+   ./gradlew :YourProvider:make
+
+   # For deployment to device
+   ./gradlew :YourProvider:deployWithAdb
+   ```
+
+### 2. Development Commands
+
+During development, you can use these Gradle tasks:
+
+```bash
+# Build your provider
+./gradlew :YourProvider:make
+
+# Deploy to device with debugging
+./gradlew :YourProvider:deployWithAdb --debug-app
+
+# Deploy and wait for debugger attachment
+./gradlew :YourProvider:deployWithAdb --wait-for-debugger
+```
+
+### 3. Debugging Tips
+
+- Use the "Test provider" option in the app for quick testing
+- Attach debugger through Android Studio:
+  1. Run with `--wait-for-debugger` flag
+  2. Click "Attach debugger to Android process"
+  3. Select your provider process
+
+## Best Practices for Provider Development
+
+1. **Code Organization**
+   - Keep your provider code modular
+   - Use meaningful package names
+   - Follow Kotlin coding conventions
+
+2. **Error Handling**
+   - Implement proper error handling
+   - Provide meaningful error messages
+   - Handle network failures gracefully
+
+3. **Testing**
+   - Test your provider thoroughly
+   - Include different network conditions
+   - Verify error cases
+
+4. **Documentation**
+   - Document your provider's functionality
+   - Include setup instructions
+   - List any special requirements
+
+## API Reference
+
+For detailed API documentation, refer to:
+- [Provider API Reference](https://flixclusiveorg.github.io/core-stubs/)
+- Example providers in the template repository
+
+## Getting Help
+
+If you run into issues during development:
+
+1. Check the error logs in Android Studio
+2. Review the [API documentation](https://flixclusiveorg.github.io/core-stubs/)
+3. Join our [Discord community](https://discord.gg/7yPSPveReu) for developer support
+
+## Next Steps
+
+- Review the [Provider Guidelines](/docs/guidelines)
+- Study the [Example Providers](/docs/examples)
+- Learn about [Advanced Features](/docs/advanced-features)
+- Understand [Provider Security](/docs/security)

@@ -1,0 +1,95 @@
+# Installation
+
+## Prerequisites
+
+Before you start creating a provider, ensure you have:
+
+- [Android Studio](https://developer.android.com/studio)
+- [Java Development Kit (JDK)](https://developer.android.com/build/jdks#jdk-gradle)
+- [Git](https://git-scm.com/downloads)
+- Knowledge on [Kotlin](https://kotlinlang.org/docs/getting-started.html) and [Android](https://developer.android.com/get-started/overview) programming
+- Flixclusive app (debug or release version)
+
+## Initial Setup
+
+<Steps>
+    <Steps.Step>
+        ### Cloning the Provider Template
+
+        <Important>When cloning the repository, it is important to toggle the **Include all branches** option. Failure to do so will lead up to future build problems.</Important>
+
+        - Visit the [template repository](https://github.com/flixclusiveorg/provider-template)
+        - Click the `Use this template` button
+        - Then click `Create a new repository`.
+    </Steps.Step>
+    <Steps.Step>
+        ### Configuring the Provider
+
+        1. Open `build.gradle.kts` in the root directory and update the placeholders for the main *author/s* and the *repository url*:
+            ```kotlin
+            subprojects {
+                // ...
+
+                // Fill out with your info
+                flxProvider {
+                    author(
+                        name = "provider-author",
+                        image = "http://github.com/example.png",
+                        socialLink = "http://github.com/example",
+                    )
+                    // author( ... )
+
+                    setRepository("https://github.com/example/example")
+                }
+            }
+            ```
+        2. If you wish to pre-configure and *automate* all package names or namespace for each provider, edit the namespace for every provider inside the same file you opened on the previous step:
+            ```kotlin
+            subprojects {
+                // ...
+
+                android {
+                    val providerPackageName = name
+                        .replace("-", "_")
+                        .replaceFirstChar { it.lowercase() }
+
+                    namespace = "com.example.providers.$providerPackageName"
+                }
+            }
+            ```
+    </Steps.Step>
+    <Steps.Step>
+        ### Creating a Custom Provider
+
+        <Tip>
+            The `providers` folder is the *recommended* folder on where to store your providers. Inside it contains two placeholder/template providers that has well-documented code to help and guide you navigate and understand on how to customize your own provider.
+        </Tip>
+
+        Customize the example provider in the `providers` folder or create a new one by following the project structure:
+            ```
+            CustomProvider/
+            ├── build.gradle.kts            # Provider-specific build configuration
+            ├── src/
+            │   └── main/
+            │       ├── kotlin/             # Your provider's source code
+            │       │   └── com/
+            │       │       └── example/
+            │       │           └── customProvider/
+            │       │               └── YourProvider.kt
+            │       └── res/                # Resources (if needed)
+            └── README.md                   # Provider-specific documentation (optional)
+            ```
+
+        <Note>
+            When creating your own provider or modifying a provider's root module/folder name you must edit the `settings.gradle.kts` on the root project and edit the include block.
+
+            ```kotlin
+            include(    
+                "BasicDummyProviderRenamed",    // <- renamed provider
+                // "BasicDummyWebViewProvider", // <- deleted provider
+                "CustomProvider"                // <- newly created provider
+            )
+            ```
+        </Note>
+    </Steps.Step>
+</Steps>
