@@ -9,4 +9,5 @@ export default withGuider({
   // These are the normal Next.JS settings.
   // Check out Next.JS docs: https://nextjs.org/docs/app/api-reference/next-config-js
   output: 'export',
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
 });
