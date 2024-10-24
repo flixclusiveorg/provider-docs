@@ -1,3 +1,8 @@
+import providerSettingsButtonPreview from '../../../public/provider-faq/provider-settings-button.png';
+import troubleshoot1Preview from '../../../public/provider-faq/troubleshoot-1.png';
+import troubleshoot2Preview from '../../../public/provider-faq/troubleshoot-2.png';
+import troubleshoot3Preview from '../../../public/provider-faq/troubleshoot-3.png';
+
 # Some FAQs
 
 ---
@@ -10,7 +15,9 @@ When a provider asks for a configuration, follow the instructions it will provid
 
 Usually its configurations are included inside its provider settings which can be opened by clicking the settings button on its provider card or provider detailed information screen.
 
-<Frame>![Provider's settings button](https://i.imgur.com/s7H7HZD.png)</Frame>
+<Frame>
+    <img src={providerSettingsButtonPreview.src} alt="Provider's settings button" />
+</Frame>
 
 ### How to troubleshoot a broken provider?
 
@@ -22,23 +29,26 @@ However, the app recommends the following steps for you to be able to help and d
         ### Test the provider
         Click the provider card of the provider you want to test. There should be a button to test the provider.
 
-
-        <Frame>![Test provider button preview](https://i.imgur.com/8SjVNWy.png)</Frame>
+        <Frame>
+            <img src={troubleshoot1Preview.src} alt='Test provider button preview' />
+        </Frame>
     </Steps.Step>
     <Steps.Step>
         ### Get the error logs of the test
         Click the provider card of the provider you want to test. There should be a button to test the provider.
 
-
-        <Frame>![Test case item preview](https://i.imgur.com/xrL6MAu.png)</Frame>
+        <Frame>
+            <img src={troubleshoot2Preview.src} alt='Test case item preview' />
+        </Frame>
     </Steps.Step>
     <Steps.Step>
         ### Report the logs
         - Click the provider card to open the provider's detailed information screen.
         - On the bottom of the authors section, click the _'Issue a bug'_ button.
 
-
-        <Frame>![Issue a bug button preview](https://i.imgur.com/sjRuK7T.png)</Frame>
+        <Frame>
+            <img src={troubleshoot3Preview.src} alt='Issue a bug button preview' />
+        </Frame>
         - Paste the logs and report it.
     </Steps.Step>
 </Steps>
