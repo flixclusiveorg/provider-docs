@@ -20,7 +20,6 @@ const template = siteTemplate({
     settings: {
         logo: () => <Logo />,
         backgroundPattern: 'flare',
-        toc: false,
         colors: {
             primary: '#b39edb',
             primaryLighter: '#d8d1e6',
@@ -53,47 +52,30 @@ const template = siteTemplate({
     },
 });
 
-const gdGuide = (url: string) => `/guides${url}`;
-const gdApi = (url: string) => `/api${url}`;
-
-const tabs = [
-    link('Guides', '/guides', {
-        icon: 'material-symbols-light:book-4-spark-outline-rounded',
-    }),
-    link('API Reference', '/api-ref', {
-        icon: 'carbon:api-1',
-    }),
-]
-
 export default defineTheme({
     extends: [template],
-    tabs,
     directories: [
-        directory('guides', {
+        directory('main', {
             sidebar: [
-                link('Template Repository', 'https://github.com/flixclusiveorg/provider-template', {
+                link('Template repository', 'https://github.com/flixclusiveorg/provider-template', {
                     style: 'star',
                     newTab: true,
                     icon: 'akar-icons:github-fill',
                 }),
-                group('Getting Started', [
-                    link('Installation', gdGuide('/getting-started/installation')),
-                    link('Development', gdGuide('/getting-started/development')),
+                link('Stubs repository', 'https://github.com/flixclusiveorg/core-stubs?tab=readme-ov-file#provider-stubs-and-utilities', {
+                    style: 'star',
+                    newTab: true,
+                    icon: 'carbon:api-1',
+                }),
+                group('Getting started', [
+                    link('Installation', '/getting-started/installation'),
+                    link('Development', '/getting-started/development'),
                 ]),
                 group('Provider', [
-                    link('What is a Provider?', gdGuide('/provider/overview')),
-                    link('Some FAQs', gdGuide('/provider/faq')),
+                    link('Overview', '/provider/overview'),
+                    link('Configuration', '/provider/configuration'),
                 ]),
             ],
-        }),
-        directory('api-ref', {
-            sidebar: [
-                link('Stubs Repository', 'https://github.com/flixclusiveorg/core-stubs?tab=readme-ov-file#provider-stubs-and-utilities', {
-                    style: 'star',
-                    newTab: true,
-                    icon: 'akar-icons:github-fill',
-                }),
-            ]
         })
     ]
 })

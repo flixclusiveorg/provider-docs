@@ -1,5 +1,7 @@
 # Installation
 
+This guide provides the steps how to initialize and prepare the required tools to create your own provider.
+
 ## Prerequisites
 
 Before you start creating a provider, ensure you have:
@@ -27,6 +29,9 @@ Before you start creating a provider, ensure you have:
 
         1. Open `build.gradle.kts` in the root directory and update the placeholders for the main *author/s* and the *repository url*:
             ```kotlin
+            fun Project.flxProvider(configuration: FlixclusiveProviderExtension.() -> Unit)
+                = extensions.getFlixclusive().configuration()
+
             subprojects {
                 // ...
 
@@ -45,6 +50,9 @@ Before you start creating a provider, ensure you have:
             ```
         2. If you wish to pre-configure and *automate* all package names or namespace for each provider, edit the namespace for every provider inside the same file you opened on the previous step:
             ```kotlin
+            fun Project.android(configuration: BaseExtension.() -> Unit)
+                = extensions.getByName<BaseExtension>("android").configuration()
+                
             subprojects {
                 // ...
 

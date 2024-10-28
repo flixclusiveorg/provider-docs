@@ -33,7 +33,7 @@ export default function LandingPage() {
                     Build media extensions to customize and enhance your Flixclusive experience.
                 </Hero.Subtitle>
                 <Hero.Actions>
-                    <Button to="/guides">Get started</Button>
+                    <Button to="/getting-started">Get started</Button>
                     <Button to="/api-ref" type="secondary">
                         Explore API
                     </Button>
