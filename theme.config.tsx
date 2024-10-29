@@ -7,6 +7,7 @@ import {
     social
 } from '@neato/guider/theme';
 import { Logo } from './components/Logo';
+import faviconUrl from "./public/favicon.ico";
 
 const template = siteTemplate({
     github: 'flixclusiveorg/Flixclusive',
@@ -45,8 +46,9 @@ const template = siteTemplate({
         titleTemplate: '%s - Flixclusive Docs',
         additionalLinkTags: [
             {
-                rel: 'icon',
-                href: '/favicon.png',
+                href: faviconUrl.src,
+                rel: "icon",
+                type: "image/x-icon",
             },
         ],
     },
