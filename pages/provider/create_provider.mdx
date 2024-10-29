@@ -1,0 +1,193 @@
+import testProviderCardPreview from '../../public/provider-cap/testprovidercard.png';
+
+# Creating a provider
+
+This guide assumes you've already configured the `TestProvider` project in the `providers` folder. Now, let's continue from the previous section.
+
+## Provider project structure
+
+As noted in the "[Creating a custom provider](/getting-started/installation#creating-a-custom-provider)" step, your project structure follows a standard Kotlin/Java Gradle module setup:
+
+```
+TestProvider/
+├── build.gradle.kts            # Provider-specific build configuration
+├── src/
+│   └── main/
+│       ├── kotlin/             # Your provider's source code
+│       │   └── com/
+│       │       └── example/
+│       │           └── testProvider/
+│       │               └── TestProvider.kt
+│       └── res/                # Resources (if needed)
+└── README.md                   # Provider-specific documentation (optional)
+```
+
+Ensure that the `TestProvider` project—or any provider you create—follows this structure within the `providers` folder.
+
+<Note>
+    The package hierarchy inside the source set folder (`src/main/kotlin` or `src/main/java`) doesn't need to match exactly, but the `build.gradle.kts` file and source set folder should always be present.
+</Note>
+
+I'll create a user-friendly markdown documentation for the Provider class.
+
+Here's the corrected and improved documentation:
+
+## Creating a Provider class
+
+The Provider class serves as the foundation for all providers in the application. It contains essential provider information and functionality.
+
+The [core stubs library](/provider/configuration#core-stubs-library) provides well-documented code - simply hover over any variable or method that is directly taken from the library to display its information.
+
+One of its key methods is `getApi()`, which returns all the API functionality and use cases for your provider that the app will need on runtime.
+
+To create a new provider:
+<Steps>
+    <Steps.Step>
+        ### Create a new class that extends `Provider`
+
+        <Warning>
+            Every `Provider` class must be annotated with the `FlixclusiveProvider` annotation!
+        </Warning>
+
+        ```kotlin
+        import com.flixclusive.provider.FlixclusiveProvider
+        import com.flixclusive.provider.Provider
+        // ...
+
+        @FlixclusiveProvider
+        class TestProvider : Provider() {
+            // ...
+        }
+        ```
+    </Steps.Step>
+    <Steps.Step>
+        ### Override the `getApi()` method
+
+        <Note>
+            The `OkHttpClient` here is a *global* network client used by the app. It is pre-configured with the user's preferred settings (i.e., DoH).
+            
+            Though, you are still allowed to pass your own network client here as long as it makes your provider work.
+        </Note>
+
+        ```kotlin
+        import android.content.Context
+        import com.flixclusive.provider.ProviderApi
+        import okhttp3.OkHttpClient
+        // ...
+
+        class TestProvider : Provider() {
+            override fun getApi(
+                context: Context,
+                client: OkHttpClient
+            ): ProviderApi {
+                TODO("Return the TestProviderApi.")
+            }
+        }
+        ```
+    </Steps.Step>
+</Steps>
+
+For a detailed information on the Provider class, look at its [API reference](https://flixclusiveorg.github.io/core-stubs/provider/com.flixclusive.provider/-provider/index.html).
+
+## Creating an API class
+
+In order to return something on the overriden `getApi()` method, you're required to create an API class that will hold most functionalities of your provider.
+
+A `ProviderApi` class has two properties that needs to be passed on its constructor:
+1. an `OkHttpClient`; and
+2. the `Provider` class that we've made on the previous step.
+
+### Create a new class that extends `ProviderApi`
+
+```kotlin
+import com.flixclusive.provider.Provider
+import com.flixclusive.provider.ProviderApi
+import okhttp3.OkHttpClient
+// ...
+
+class TestProviderApi(
+    client: OkHttpClient,
+    provider: Provider
+) : ProviderApi(client, provider) {
+    // ... some overriden fields
+}
+```
+
+### Things you can override in a `ProviderApi` class
+
+| Property/Method | Description |
+|----------------|-------------|
+| `baseUrl` | Define the base URL of your provider's API/website. |
+| `testFilm` | Specify a test film for validating provider functionality. |
+| `catalogs` | Define available media catalogs/categories in your provider that the app will load on the home and search screen. |
+| `filters` | Set up filters that users can apply when searching. |
+| `getCatalogItems()` | Fetch and display items from a specific catalog. |
+| `getFilmDetails()` | Get detailed information or metadata about a specific film. |
+| `getLinks()` | Retrieve media links for a film. |
+| `search()` | Search for films using various criteria (title, IDs, filters) |
+
+All these methods have default implementations. Override them to provide your provider-specific functionality. For a detailed information on this table, see the [API reference](https://flixclusiveorg.github.io/core-stubs/provider/com.flixclusive.provider/-provider-api/index.html).
+
+## Final output
+
+To complete your provider implementation, you'll need to connect your Provider class with your ProviderApi. The final output of the files should be similar below:
+
+<CodeGroup>
+    <CodeGroup.Code title='TestProvider.kt'>
+        ```kotlin
+        import android.content.Context
+        import com.flixclusive.provider.ProviderApi
+        import okhttp3.OkHttpClient
+        // ...
+        
+        class TestProvider : Provider() {
+            override fun getApi(
+                context: Context,
+                client: OkHttpClient
+            ): ProviderApi {
+                return TestProviderApi(
+                    client = client,
+                    provider = this
+                )
+            }
+        }
+        ```
+    </CodeGroup.Code>
+    <CodeGroup.Code title='TestProviderApi.kt'>
+        ```kotlin
+        import com.flixclusive.provider.Provider
+        import com.flixclusive.provider.ProviderApi
+        import okhttp3.OkHttpClient
+        // ...
+
+        class TestProviderApi(
+            client: OkHttpClient,
+            provider: Provider
+        ) : ProviderApi(client, provider) {
+            // ... some overriden fields
+        }
+        ```
+    </CodeGroup.Code>
+</CodeGroup>
+
+Lastly, deploy the provider to the app using the following command:
+
+<Tabs items={["Using the pre/release app", "Using the debug app"]}>
+   <Tabs.Tab>
+      If you are developing using the *release* or *pre-release* version of the app, run the following command:
+      ```bash
+      ./gradlew :TestProvider:deployWithAdb
+      ```
+   </Tabs.Tab>
+   <Tabs.Tab>
+      If you are developing using the *debug* app, run the following command:
+      ```bash
+      ./gradlew :TestProvider:deployWithAdb --debug-app
+      ```
+   </Tabs.Tab>
+</Tabs>
+
+After successful deployment, your provider should appear in the app's provider list.
+<Frame>
+    <img src={testProviderCardPreview.src} alt="Test provider card preview" />
+</Frame>

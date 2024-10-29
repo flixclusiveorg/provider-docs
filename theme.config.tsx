@@ -74,6 +74,20 @@ export default defineTheme({
                 group('Provider', [
                     link('Overview', '/provider/overview'),
                     link('Configuration', '/provider/configuration'),
+                    link('Creating a provider', '/provider/creating_a_provider'),
+                ]),
+                group('Examples', [
+                    link('Implementing settings', '/examples/impl_settings'),
+                    link('Loading catalogs', '/examples/loading_catalogs'),
+                    link('Fetching metadata', '/examples/fetching_metadata'),
+                    link('Searching media', '/examples/searching_media'),
+                    link('Implementing filters', '/examples/impl_filters'),
+                    link('Loading links', '/examples/get_links'),
+                    link('Testing', '/examples/get_links'),
+                ]),
+                group('Advanced', [
+                    link('WebView', '/advanced/webview'),
+                    link('Unsupported libraries', '/advanced/unsupported_libs'),
                 ]),
             ],
         })
