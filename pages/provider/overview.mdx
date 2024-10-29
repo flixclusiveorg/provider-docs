@@ -6,14 +6,17 @@ Learn brief information about how provider works.
 
 At its core, a provider in Flixclusive consists of two essential components working together:
 
-### The Provider API
+### Provider APIs
+<Note>
+    The [`Provider`](https://flixclusiveorg.github.io/core-stubs/provider/com.flixclusive.provider/-provider/index.html) class is different from the `ProviderAPI`.
+</Note>
 The [`ProviderApi`](https://flixclusiveorg.github.io/core-stubs/provider/com.flixclusive.provider/-provider-api/index.html) class serves as the functional backbone of a provider. It:
 - Handles all the actual operations
 - Manages content fetching
 - Processes media requests
 - Controls provider behavior
 
-### The Provider Information
+### Provider information
 The [`ProviderData`](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider/-provider-data/index.html) class contains all the metadata and configuration details. It:
 - Defines provider identity
 - Specifies capabilities
@@ -22,14 +25,8 @@ The [`ProviderData`](https://flixclusiveorg.github.io/core-stubs/model-provider/
 
 These two components work together seamlessly to create a complete provider experience. While the API handles the *how* of content delivery, the ProviderData manages the *what* and *who* of your provider.
 
-## How They Work Together
+## How they work together
 
 Think of it this way:
 - `ProviderApi` is like an engine - it does all the work
-- `ProviderData` is like a driver's manual - it tells us what the provider can do and how to use it
-
-Together, they ensure users get:
-- Reliable content delivery
-- Clear provider information
-- Consistent behavior
-- Proper configuration
+- `ProviderData` is like a driver's manual - it tells the app what the provider can do and how to use it
