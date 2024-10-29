@@ -9,7 +9,7 @@ This guide will provide brief insights for building and running your own provide
 To build and package your provider, run the following command in your terminal:
 
 ```bash
-./gradlew :YourProvider:make
+./gradlew :TestProvider:make
 ```
 
 ## Deployment
@@ -19,13 +19,13 @@ To deploy the provider on an emulator or a device, choose the following command 
    <Tabs.Tab>
       If you are developing using the *release* or *pre-release* version of the app, run the following command:
       ```bash
-      ./gradlew :YourProvider:deployWithAdb
+      ./gradlew :TestProvider:deployWithAdb
       ```
    </Tabs.Tab>
    <Tabs.Tab>
       If you are developing using the *debug* app, run the following command:
       ```bash
-      ./gradlew :YourProvider:deployWithAdb --debug-app
+      ./gradlew :TestProvider:deployWithAdb --debug-app
       ```
    </Tabs.Tab>
 </Tabs>
@@ -40,7 +40,7 @@ There might be cases that you'll find yourself wanting to use the built-in debug
 
       The command below will deploy and wait for debugger attachment:
       ```bash
-      ./gradlew :YourProvider:deployWithAdb --wait-for-debugger
+      ./gradlew :TestProvider:deployWithAdb --wait-for-debugger
       ```
    </Steps.Step>
    <Steps.Step>

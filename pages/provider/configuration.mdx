@@ -96,11 +96,13 @@ It’s used as a regular library and can be implemented at either the project or
 
 ## Configuring `settings.gradle.kts`
 
-This section involves *manually* editing and adding files to your project.
+This section involves *manually* editing and adding files to your project. This step is essential to read if you've followed the "[Creating a custom provider](/getting-started/installation#creating-a-custom-provider)" step on the "[Getting started](/getting-started/installation)" section.
 
 ### Changing the project structure
 
-<Tip>The template repository already uses a recommended project structure, where all provider modules are stored in the `providers` folder. You can skip this step if your project follows this setup.</Tip>
+<Tip>
+    The template repository already uses a recommended project structure, where all provider modules are stored in the `providers` folder. You can skip this step if your project follows this setup.
+</Tip>
 
 To create a new provider called `TestProvider` with its own folder at the root project level rather than inside the `providers` folder, remove the following code from `settings.gradle.kts`:
 ```kotlin
@@ -146,7 +148,9 @@ The properties of the entity class are customizable through the [`flxProvider`](
     <Steps.Step>
         #### Name (optional)
 
-        <Tip>Manually set the name of your provider if it requires spaces or unsupported symbols.</Tip>
+        <Tip>
+            Manually set the name of your provider if it requires spaces or unsupported symbols.
+        </Tip>
 
         The name of the provider. This is optional to configure as the gradle plugin *automatically* inherits the module/project name of the provider package.
 
@@ -263,7 +267,9 @@ The properties of the entity class are customizable through the [`flxProvider`](
 
         This sets where users can find your provider's source code and what the core gradle plugin will use as a basis to find the updater file in your repository.
 
-        <Tip>It is recommended to use this code on the project level `build.gradle.kts` file.</Tip>
+        <Tip>
+            It is recommended to use this code on the project level `build.gradle.kts` file.
+        </Tip>
 
         ```kotlin
         // Project level build.gradle.kts

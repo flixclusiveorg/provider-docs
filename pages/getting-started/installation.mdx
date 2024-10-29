@@ -11,6 +11,7 @@ Before you start creating a provider, ensure you have:
 - [Git](https://git-scm.com/downloads)
 - Knowledge on [Kotlin](https://kotlinlang.org/docs/getting-started.html) and [Android](https://developer.android.com/get-started/overview) programming
 - Flixclusive app (debug or release version)
+- SOME PATIENCE FOR READING FFS!
 
 ## Initial setup
 
@@ -61,7 +62,7 @@ Before you start creating a provider, ensure you have:
                         .replace("-", "_")
                         .replaceFirstChar { it.lowercase() }
 
-                    namespace = "com.example.providers.$providerPackageName"
+                    namespace = "com.example.$providerPackageName"
                 }
             }
             ```
@@ -75,29 +76,21 @@ Before you start creating a provider, ensure you have:
 
         Customize the example provider in the `providers` folder or create a new one by following the project structure:
             ```
-            CustomProvider/
+            TestProvider/
             ├── build.gradle.kts            # Provider-specific build configuration
             ├── src/
             │   └── main/
             │       ├── kotlin/             # Your provider's source code
             │       │   └── com/
             │       │       └── example/
-            │       │           └── customProvider/
-            │       │               └── YourProvider.kt
+            │       │           └── testProvider/
+            │       │               └── TestProvider.kt
             │       └── res/                # Resources (if needed)
             └── README.md                   # Provider-specific documentation (optional)
             ```
 
         <Note>
-            When creating your own provider or modifying a provider's root module/folder name you must edit the `settings.gradle.kts` on the root project and edit the include block.
-
-            ```kotlin
-            include(    
-                "BasicDummyProviderRenamed",    // <- renamed provider
-                // "BasicDummyWebViewProvider", // <- deleted provider
-                "CustomProvider"                // <- newly created provider
-            )
-            ```
+            When creating your own provider or modifying a provider's module/folder name you must also edit the `settings.gradle.kts` on the root project and edit the include block. For more details, check out the [provider configuration section.](/provider/configuration#configuring-settings-gradle-kts)
         </Note>
     </Steps.Step>
 </Steps>
