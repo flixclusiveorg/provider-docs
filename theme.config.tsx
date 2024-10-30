@@ -64,7 +64,7 @@ export default defineTheme({
                     newTab: true,
                     icon: 'akar-icons:github-fill',
                 }),
-                link('Stubs repository', 'https://github.com/flixclusiveorg/core-stubs?tab=readme-ov-file#provider-stubs-and-utilities', {
+                link('API reference', 'https://flixclusiveorg.github.io/core-stubs/', {
                     style: 'star',
                     newTab: true,
                     icon: 'carbon:api-1',
