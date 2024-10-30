@@ -36,7 +36,7 @@ const template = siteTemplate({
         },
     },
     contentFooter: {
-        editRepositoryBase: '',
+        editRepositoryBase: 'https://github.com/flixclusiveorg/provider-docs/tree/main',
         socials: [
             social.discord('https://discord.gg/7yPSPveReu'),
             social.github('https://github.com/flixclusive/Flixclusive'),
