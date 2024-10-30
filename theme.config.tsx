@@ -87,6 +87,11 @@ export default defineTheme({
                     link('Loading catalogs', '/impl/loading_catalogs'),
                     link('Fetching media links', '/impl/fetching_links'),
                 ]),
+                group('Best practices', [
+                    link('Convenience methods', '/best_practices/convenience_methods'),
+                    link('Coding style', '/best_practices/coding_style'),
+                    link('Development preferences', '/best_practices/dev_prefs'),
+                ]),
                 group('Advanced', [
                     link('WebView', '/advanced/webview'),
                     link('Unsupported libraries', '/advanced/unsupported_libs'),
