@@ -1,1 +1,103 @@
 # Searching media
+
+This section guides you through implementing the `search` method for your provider, using the TMDB API as an example. Before proceeding, make sure you understand the [Search Filters](#search-filters) section, as it explains how to set up filters that can be applied to searches.
+
+## Overview
+
+In the `ProviderApi` class, the `search` method is designed to retrieve media items based on a range of criteria. This method is intended to be overridden, allowing each provider to define its unique search behavior.
+
+```kotlin
+class TestProviderApi(
+    client: OkHttpClient,
+    provider: Provider
+) : ProviderApi(client, provider) {
+    override suspend fun search(
+        title: String,
+        page: Int,
+        id: String?,
+        imdbId: String?,
+        tmdbId: Int?,
+        filters: FilterList,
+    ): SearchResponseData<FilmSearchItem> {
+        // Implement search functionality here
+    }
+}
+```
+
+The `search` method above accepts the query parameters: `title`, `id`, `imdbId`, and `tmdbId`. The ID parameters are useful for specific queries when you are confident that the media you are searching for can be identified using its ID. In contrast, the `title` parameter is intended for cases where the search is less certain.
+
+### SearchResponseData
+
+The `search` method returns a `SearchResponseData` object, which contains:
+
+| Property             | Description                                                        |
+|----------------------|--------------------------------------------------------------------|
+| `page`               | Unique identifier for the film.                                    |
+| `results`            | A list of FilmSearchItem objects that match the search criteria.   |
+| `hasNextPage`        | Name of the provider where this film is listed.                    |
+| `totalPages`         | URL of the film’s homepage.                                        |
+
+For more information, check the API references for [FilmSearchItem](https://flixclusiveorg.github.io/core-stubs/model-film/com.flixclusive.model.film/-film-search-item/index.html) and [SearchResponseData](https://flixclusiveorg.github.io/core-stubs/model-film/com.flixclusive.model.film/-search-response-data/index.html).
+
+## Example implementation
+
+In this section, [TMDB's search API](https://developer.themoviedb.org/reference/search-multi) will be referenced as an example to complete the guide.
+
+```kotlin
+// class TmdbFilters(...) : FilterGroup(...) {
+//      fun getMediaTypeFilter(): Int = ...
+// }
+
+// data class TMDBSearchDataDTO(...)
+// data class TMDBSearchItemDto(...) {
+//      fun toFilmSearchItem(): FilmSearchItem = ...    
+// }
+
+// fun buildTmdbRequest(...): String
+
+override suspend fun search(
+    title: String,
+    page: Int,
+    id: String?,
+    imdbId: String?,
+    tmdbId: Int?,
+    filters: FilterList,
+): SearchResponseData<FilmSearchItem> {
+    val mediaType = (filters.first() as TmdbFilters).getMediaTypeFilter() 
+    val endpoint = when (mediaType) {
+        0 -> "https://api.themoviedb.org/3/search/multi"
+        1 -> "https://api.themoviedb.org/3/search/movie"
+        2 -> "https://api.themoviedb.org/3/search/tv"
+    }
+    
+    val dtoResponse = client
+        .request(url = buildTmdbRequest(endpoint, title, page))
+        .execute()
+        .fromJson<TMDBSearchDataDTO>(
+            errorMessage = "Couldn't parse response data!"
+        )
+    
+    val mappedResults = dtoResponse.results
+        .map { it.toFilmSearchItem() }
+
+    return SearchResponseData(
+        page = dtoResponse.page,
+        results = mappedResults,
+        hasNextPage = dtoResponse.page < dtoResponse.total_pages,
+        totalPages = dtoResponse.total_pages
+    )
+}
+```
+
+<Tip>
+    The two utility functions `client.request(...)` and `Response.fromJson<T>(...)` make development easier and faster. Check out [best practices guide](/best_practices/convenience_methods#network_calls).
+</Tip>
+
+A brief rundown on what is included in the seach implementation:
+- It retrieves the media type from the filters.
+- Chooses the appropriate TMDB API endpoint based on the media type.
+- Executes the API request and parses the response using custom data trasnsfer objects (DTOs).
+- Maps the search results from a non-usable DTO to a usable `FilmSearchItem` format.
+- Returns a `SearchResponseData` object, containing pagination information and the results.
+
+By using this example as a basis, you can implement a robust search feature in your application.
