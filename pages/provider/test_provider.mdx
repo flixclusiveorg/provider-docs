@@ -39,15 +39,18 @@ The app includes built-in functionality to test your providers. For this to work
 The `testFilm` property holds the metadata of the film you want to test. By default, it uses [The Godfather (1972)](https://github.com/flixclusiveorg/core-stubs/blob/master/provider/src/main/kotlin/com/flixclusive/provider/util/DefaultTestFilm.kt).
 
 ```kotlin
-import android.content.Context
 import com.flixclusive.model.film.DEFAULT_FILM_SOURCE_NAME
+import com.flixclusive.model.film.FilmDetails
 import com.flixclusive.model.film.Movie
-import com.flixclusive.provider.FlixclusiveProvider
+import com.flixclusive.provider.Provider
+import com.flixclusive.provider.ProviderApi
 import okhttp3.OkHttpClient
 // ...
-
-@FlixclusiveProvider
-class TestProvider : Provider() {
+ 
+class TestProviderApi(
+    client: OkHttpClient,
+    provider: Provider
+) : ProviderApi(client, provider) {
     override val testFilm: FilmDetails 
         = Movie(
             id = "238",
