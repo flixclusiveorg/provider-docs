@@ -1,1 +1,98 @@
 # Testing a provider
+
+This guide covers testing tips for provider development, focusing on Android unit testing and debugging.
+
+## Unit testing
+Test your provider's core functionality using Android's testing framework:
+
+```kotlin
+class TestProviderTest {
+    private lateinit var provider: TestProvider
+    private lateinit var api: TestProviderApi
+
+    // val mockContext = ...
+    // val mockClient = ...
+
+    @Before
+    fun setup() {
+        provider = TestProvider()
+        api = provider.getApi(
+            context = mockContext,
+            client = mockClient
+        ) as TestProviderApi
+    }
+
+    @Test
+    fun `test search functionality`() {
+        runBlocking {
+            val data = api.search(...)
+            assert(data.results.isNotEmpty())
+        }
+    }
+}
+```
+
+## In-app testing
+
+The app includes built-in functionality to test your providers. For this to work effectively, ensure that the `testFilm` property in your `ProviderApi` class matches your API testing requirements.
+
+The `testFilm` property holds the metadata of the film you want to test. By default, it uses [The Godfather (1972)](https://github.com/flixclusiveorg/core-stubs/blob/master/provider/src/main/kotlin/com/flixclusive/provider/util/DefaultTestFilm.kt).
+
+```kotlin
+import android.content.Context
+import com.flixclusive.model.film.DEFAULT_FILM_SOURCE_NAME
+import com.flixclusive.model.film.Movie
+import com.flixclusive.provider.FlixclusiveProvider
+import okhttp3.OkHttpClient
+// ...
+
+@FlixclusiveProvider
+class TestProvider : Provider() {
+    override val testFilm: FilmDetails 
+        = Movie(
+            id = "238",
+            tmdbId = 238,
+            imdbId = "tt0068646",
+            title = "The Godfather",
+            rating = 8.691,
+            year = 1972,
+            homePage = "http://www.thegodfather.com/",
+            releaseDate = "1972-03-14",
+            backdropImage = "https://image.tmdb.org/t/p/w1280/tmU7GeKVybMWFButWEGl2M4GeiP.jpg",
+            posterImage = "https://image.tmdb.org/t/p/w500/tmU7GeKVybMWFButWEGl2M4GeiP.jpg",
+            providerName = DEFAULT_FILM_SOURCE_NAME,
+            overview = "Spanning the years 1945 to 1955, a chronicle of the fictional Italian-American Corleone crime family. When organized crime family patriarch, Vito Corleone barely survives an attempt on his life, his youngest son, Michael steps in to take care of the would-be killers, launching a campaign of bloody revenge.",
+        )
+
+    // ...
+}
+```
+
+## Debugging tips
+- Use the [debugging development guide](/getting-started/development#debugging) and Android Studio's debugger to step through your provider's code and
+- Use built-in logging utilities from [`com.flixclusive.core.util.log`](https://flixclusiveorg.github.io/core-stubs/core-util/com.flixclusive.core.util.log/index.html):
+```kotlin
+// Debug logs
+debugLog("Loading search results...")
+debugLog(searchResult) // Logs any object
+
+// Error logs
+errorLog("Failed to fetch results")
+errorLog(exception) // Logs stack trace
+
+// Other log levels
+infoLog("Provider initialized")
+warnLog("Using fallback source")
+verboseLog("Request details")
+
+// TAG = FlixclusiveLog
+```
+- Add network logging with OkHttp's interceptor:
+```kotlin
+client.newBuilder()
+    .addInterceptor(HttpLoggingInterceptor().apply { 
+        level = HttpLoggingInterceptor.Level.BODY 
+    })
+```
+
+For a more comprehensive testing guide, refer to the [Android Local Unit Testing Documentation](https://developer.android.com/training/testing/local-tests).
