@@ -108,7 +108,7 @@ In this section, [TMDB's search API](https://developer.themoviedb.org/reference/
         Both `TMDBSearchDataDTO` and `TMDBSearchItemDTO` are DTO classes for structuring and handling TMDB API response data.
 
         <CodeGroup>
-            <CodeGroup.Code title="TMDBSearchDataDTO">
+            <CodeGroup.Code title="TMDBSearchDataDTO.kt">
                 ```kotlin
                 data class TMDBSearchDataDTO(
                     val page: Int,
@@ -117,63 +117,40 @@ In this section, [TMDB's search API](https://developer.themoviedb.org/reference/
                 )
                 ```
             </CodeGroup.Code>
-            <CodeGroup.Code title="TMDBSearchItemDTO">
+            <CodeGroup.Code title="TMDBSearchItemDTO.kt">
                 ```kotlin
                 // Referenced directly from Flixclusive code
 
                 import com.flixclusive.model.film.util.FilmType
-                import com.flixclusive.model.film.util.extractYear
                 import com.flixclusive.model.film.FilmSearchItem
-                import com.flixclusive.model.film.Genre
                 import com.google.gson.annotations.SerializedName
 
-                internal data class TMDBSearchItemDTO(
+                data class TMDBSearchItemDTO(
                     @SerializedName("name", alternate = ["title"]) val title: String,
-                    @SerializedName("backdrop_path") val backdropImage: String? = null,
-                    @SerializedName("genre_ids") val genreIds: List<Int> = emptyList(),
                     @SerializedName("homepage") val homePage: String? = null,
-                    @SerializedName("original_language") val language: String? = null,
                     @SerializedName("poster_path") val posterImage: String? = null,
                     @SerializedName("media_type") val mediaType: String? = null,
-                    @SerializedName("release_date", alternate = ["first_air_date"]) val releaseDate: String? = null,
-                    @SerializedName("vote_average") val rating: Double? = null,
-                    @SerializedName("vote_count") val voteCount: Int = 0,
                     @SerializedName("id") val tmdbId: Int,
-                    val adult: Boolean = false,
-                    val overview: String? = null,
+                    // ... other needed info
                 ) {
                     /**
-                     * Quick mapper method
+                     * An instance mapper method
                      */
-                    fun toFilmSearchItem(filmType: FilmType): FilmSearchItem {
-                        val genreName = when (filmType) {
-                            FilmType.MOVIE -> "Movie"
-                            FilmType.TV_SHOW -> "TV Show"
+                    fun toFilmSearchItem(): FilmSearchItem {
+                        val genreName = when (mediaType) {
+                            FilmType.MOVIE.type -> "Movie"
+                            FilmType.TV_SHOW.type -> "TV Show"
                         }
 
                         return FilmSearchItem(
                             id = null,
-                            backdropImage = backdropImage,
                             providerName = "TMDB",
-                            genreIds = genreIds,
-                            language = language,
-                            posterImage = posterImage,
-                            rating = rating,
+                            filmType = filmType,
                             homePage = homePage,
                             title = title,
+                            posterImage = posterImage,
                             tmdbId = tmdbId,
-                            adult = adult,
-                            overview = overview,
-                            releaseDate = releaseDate,
-                            filmType = filmType,
-                            voteCount = voteCount,
-                            year = releaseDate?.extractYear(),
-                            genres = listOf(
-                                Genre(
-                                    id = -1,
-                                    name = genreName
-                                )
-                            ),
+                            // ...
                         )
                     }
                 }
@@ -233,7 +210,7 @@ In this section, [TMDB's search API](https://developer.themoviedb.org/reference/
         val dtoResponse = client
             .request(url = buildTmdbRequestUrl(endpoint, title, page))
             .execute()
-            .fromJson(
+            .fromJson<TMDBSearchDataDTO>(
                 errorMessage = "Couldn't parse response data!"
             )
         ```
