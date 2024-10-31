@@ -81,9 +81,9 @@ export default defineTheme({
                 ]),
                 group('Implementation', [
                     link('Settings UI', '/impl/impl_settings'),
+                    link('Fetching metadata', '/impl/fetching_metadata'),
                     link('Search filters', '/impl/impl_filters'),
                     link('Searching media', '/impl/searching_media'),
-                    link('Fetching metadata', '/impl/fetching_metadata'),
                     link('Loading catalogs', '/impl/loading_catalogs'),
                     link('Fetching media links', '/impl/fetching_links'),
                 ]),
