@@ -1,1 +1,189 @@
 # Loading catalogs
+
+This guide will provide implementation tips for loading catalogs on your providers. This assumes that you've read "[Searching media's SearchResponseData](/impl/searching_media#search-response-data)".
+
+## Overview
+
+Catalogs represent collections of media content that are displayed on the home and search screens of the app. They serve as the primary way to organize and present content to users.
+
+The `ProviderApi` class includes two essential components for catalog implementation:
+
+1. `catalogs` property - Defines available catalog categories
+2. `getCatalogItems` method - Retrieves items for a specific catalog
+
+```kotlin
+class TestProviderApi(
+    client: OkHttpClient,
+    provider: Provider
+) : ProviderApi(client, provider) {
+    override val catalogs: List<ProviderCatalog>
+        get() = listOf(
+            // ...
+        )
+
+    override suspend fun getCatalogItems(
+        catalog: ProviderCatalog,
+        page: Int
+    ): SearchResponseData<FilmSearchItem> {
+        // return ...
+    }
+}
+```
+
+### ProviderCatalog
+
+The `ProviderCatalog` class extends the base `Catalog` class to include provider-specific information. It is designed to represent a catalog within the context of a specific content provider.
+
+| Property | Description |
+|----------|-------------|
+| `name` | The display name of the catalog. Used in UI elements and navigation. Should be user-friendly and descriptive. |
+| `url` | The endpoint URL for accessing the catalog's contents. Used for making API requests to fetch catalog items. |
+| `canPaginate` | Indicates whether the catalog supports pagination. Determines if "Load More" functionality should be available. |
+| `image` | Optional image URL associated with the catalog. Used for visual representation in the UI. |
+| `providerName` | Name of the provider offering this catalog. Used for identification and filtering. |
+
+For more information, check its [API reference](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider/-provider-catalog/index.html).
+
+## Example using TMDB API
+
+In this section, [TMDB's discover API](https://developer.themoviedb.org/reference/discover-movie) will be referenced as an example to complete the guide.
+
+<Steps>
+    <Steps.Step>
+        ### Define DTO classes
+
+        The DTO classes needed for the said API is also similar to what had been created on the ["Searching media" guide](/impl/searching_media#define-dto-classes). Copy the code there and proceed to the next step.
+    </Steps.Step>
+    <Steps.Step>
+        ### Override the essentials
+
+        In your `ProviderApi` class, override both the `catalogs` property and `getCatalogItems` method.
+
+        <Tip>
+            In Android Studio, `Ctrl + O` is the shortcut key for overriding methods and properties.
+        </Tip>
+
+        ```kotlin
+        class TestProviderApi(
+            client: OkHttpClient,
+            provider: Provider
+        ) : ProviderApi(client, provider) {
+            override val catalogs: List<ProviderCatalog>
+                get() = TODO("Not yet implemented")
+
+            override suspend fun getCatalogItems(
+                catalog: ProviderCatalog,
+                page: Int
+            ): SearchResponseData<FilmSearchItem> {
+                TODO("Not yet implemented")
+            }
+        }
+        ```
+    </Steps.Step>
+    <Steps.Step>
+        ### Configure the `catalogs` property
+
+        The API endpoints for fetching catalogs are converted onto a `ProviderCatalog` instance. Here, it uses `discover-tv` and `discover-movie` endpoint of TMDB. 
+
+        ```kotlin
+        val popularMovies = ProviderCatalog(
+            name = "Trending Movies",
+            url = "https://api.themoviedb.org/3/discover/movie/..." ,
+            canPaginate = true,
+            providerName = "Test Provider"
+        )
+
+        // A catalog with an image/logo
+        val popularTvShows = ProviderCatalog(
+            name = "Popular TV Shows",
+            url = "https://api.themoviedb.org/3/discover/tv/...",
+            canPaginate = true,
+            image = "https://api.themoviedb.org/sample_icon.png",
+            providerName = "Test Provider"
+        )
+        ```
+
+        Then, these two will be passed onto the `catalogs` property:
+        ```kotlin
+        override val catalogs: List<ProviderCatalog>
+            get() = listOf(
+                popularMovies,
+                popularTvShows
+            )
+        ```
+    </Steps.Step>
+    <Steps.Step>
+        ### Configure the `getCatalogItems` method
+
+        The method takes in two parameters:
+        1. `catalog` - this is the catalog that the API will need to fetch and load.
+        2. `page` - this is pagination usecases.
+
+        Similar to what we've done on the previous guides, we just need to call the API endpoint we got from the `url` property of the `ProviderCatalog`. Then, parse that DTO data to a usable `SearchResponseData<FilmSearchItem>`.
+
+        ```kotlin
+        override suspend fun getCatalogItems(
+            catalog: ProviderCatalog,
+            page: Int
+        ): SearchResponseData<FilmSearchItem> {
+            val dtoResponse = client
+                .request(url = parseCatalogUrl(catalog.url, page))
+                .execute()
+                .fromJson<TMDBSearchDataDTO>(
+                    errorMessage = "Couldn't parse response data!"
+                )
+        
+            val mappedResults = dtoResponse.results
+                .map { searchItemDto ->
+                    searchItemDto.toFilmSearchItem()
+                }
+        
+            return SearchResponseData(
+                page = dtoResponse.page,
+                results = mappedResults,
+                hasNextPage = dtoResponse.page < dtoResponse.total_pages,
+                totalPages = dtoResponse.total_pages
+            )
+        }
+        ```
+    </Steps.Step>
+</Steps>
+
+### Final output
+
+```kotlin
+class TestProviderApi(
+    client: OkHttpClient,
+    provider: Provider
+) : ProviderApi(client, provider) {
+    override val catalogs: List<ProviderCatalog>
+        get() = listOf(
+            popularMovies,
+            popularTvShows
+        )
+
+    override suspend fun getCatalogItems(
+        catalog: ProviderCatalog,
+        page: Int
+    ): SearchResponseData<FilmSearchItem> {
+        val dtoResponse = client
+            .request(url = parseCatalogUrl(catalog.url, page))
+            .execute()
+            .fromJson<TMDBSearchDataDTO>(
+                errorMessage = "Couldn't parse response data!"
+            )
+    
+        val mappedResults = dtoResponse.results
+            .map { searchItemDto ->
+                searchItemDto.toFilmSearchItem()
+            }
+    
+        return SearchResponseData(
+            page = dtoResponse.page,
+            results = mappedResults,
+            hasNextPage = dtoResponse.page < dtoResponse.total_pages,
+            totalPages = dtoResponse.total_pages
+        )
+    }
+}
+```
