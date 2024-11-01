@@ -266,7 +266,7 @@ override suspend fun search(
     val dtoResponse = client
         .request(url = buildTmdbRequestUrl(endpoint, title, page))
         .execute()
-        .fromJson(
+        .fromJson<TMDBSearchDataDTO>(
             errorMessage = "Couldn't parse response data!"
         )
 
