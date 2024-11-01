@@ -88,7 +88,6 @@ export default defineTheme({
                     link('Fetching media links', '/impl/fetching_links'),
                 ]),
                 group('Best practices', [
-                    link('Convenience methods', '/best_practices/convenience_methods'),
                     link('Coding style', '/best_practices/coding_style'),
                     link('Development preferences', '/best_practices/dev_prefs'),
                 ]),
