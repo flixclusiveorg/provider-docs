@@ -1,1 +1,144 @@
 # Coding style
+
+This guide will go over some tips on how to standardize your code so everybody can contribute to it. It's *not necessary* to read this section of the docs if you have your own coding preferences.
+
+<Note>
+    Kotlin docs has its own [coding conventions](https://kotlinlang.org/docs/coding-conventions.html#directory-structure).
+</Note>
+
+## The DOs 
+
+This section explains the preferred code style for achieving code readability.
+
+### Prefer descriptive names
+
+Choose names that convey the purpose of the variable, function, or class.
+
+### Use identations and spaces
+
+Please *FFS*, code like a sane person and use proper spaces and tabs when coding-it is more readable that way.
+
+- Bad example:
+    ```kotlin
+    val listOfApis = listOf("API1","API2","API3","API4")
+    val listOfExtractors = listOf("EX1","EX2")
+    // ❌
+    ```
+
+- Good example:
+    ```kotlin
+    val listOfApis = listOf(
+        "API1",
+        "API2",
+        "API3",
+        "API4"
+    )
+    val listOfExtractors = listOf("EX1", "EX2")
+    // ✅
+    ```
+
+### Organize code by feature
+
+Always group related classes together by *feature*, not by type. This structure makes it easier to find everything related to a specific feature in one place.
+
+```
+└── com.example.testProvider/
+    ├── api/
+    │   ├── TestProviderApi.kt
+    │   └── ... other API related files
+    ├── settings/
+    │   ├── MySettingsScreen.kt
+    │   └── ... other compose related files
+    ├── common/
+    │   └── ... helper classes/methods
+    └── TestProvider.kt
+```
+
+### Keep methods short and focused
+
+Aim for small methods that perform a single task, improving readability and maintainability.
+
+- Bad example:
+    ```kotlin
+    override suspend fun getLinks(
+        // ...
+    ) {EXTRACTOR1
+        // Fetch API
+        // Parse HTML
+        // Execute extractor
+        // Return to callback
+    }
+    // ❌
+    ```
+
+- Good example:
+    ```kotlin
+    override suspend fun getLinks(
+        // ...
+    ) {
+        val response = fetchApi(...)
+        val html = parseResponse(...)
+        val links = extractor.run(...)
+        
+        for (link in links) {
+            onLinkLoaded(link)
+        }
+    }
+    // ✅
+    ```
+
+## The DONTs
+
+This section explains the pitfalls to avoid to when achieving code readability.
+
+### Avoid the elvis operator
+
+The `?:` operator does make development faster but new people might get confused to it. This can easily be replaced by a simple conditional `if (x != null)`.
+
+### Avoid premature abstraction
+
+It's the need to create an interface that only has one implementation. This only obfuscates the code and makes code reading more difficult and slow.
+
+### Avoid overly complex expressions
+
+When creating providers, the tendency to combine too many operations in a single line can make code difficult to read and maintain. Prioritize readability by breaking complex expressions into multiple, simpler statements.
+
+- Bad example:
+    ```kotlin
+    val catalogNames = catalogs
+        .filter { it.isMovie }
+        .map { it.name }
+        .sortedByDescending { it.name }
+        .take(5)
+    // ❌
+    ```
+
+- Good example:
+    ```kotlin
+    val movieCatalogs = catalogs.filter { it.isMovie }
+    val namesOfMovieCatalogs = movieCatalogs.map { it.name }
+    val topFiveMovieCatalogs = doubledValues.sortedDescending().take(5)
+    // ✅
+    ```
+
+### Avoid excessive comments
+
+Always aim to write self-explanatory code with meaningful variable so there'd be no need to add extra comments. Only add comments to explain *why* a code does it and not *what* it does.
+
+### Avoid overly long naming conventions
+
+While descriptive names are important for code readability, excessively long names can make code cumbersome and difficult to follow.
+
+- Bad example:
+    ```kotlin
+    fun getSubtitlesAndStreamsFromApi(): List<MediaLink>
+        = // ...
+    // ❌
+    ```
+
+- Good example:
+    ```kotlin
+    fun getMediaLinks(): Double
+        = // ...
+    // ✅
+    ```
