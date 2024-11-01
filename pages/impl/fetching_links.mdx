@@ -1,1 +1,211 @@
 # Fetching media links
+
+This guide will provide implementation tips for fetching media links from your providers. 
+
+It also assumes that you've:
+- Read previous guides that has TMDB API examples.
+- Got knowledge on basic scraping.
+
+## Overview
+
+Media links represent sources or links that are used for media content. The `ProviderApi` class includes the essential `getLinks` method for fetching media content:
+
+```kotlin
+class TestProviderApi(
+    client: OkHttpClient,
+    provider: Provider
+) : ProviderApi(client, provider) {
+    override suspend fun getLinks(
+        watchId: String,
+        film: FilmDetails,
+        episode: Episode?,
+        onLinkFound: (MediaLink) -> Unit
+    ) {
+        // Implementation
+    }
+}
+```
+
+### MediaLink
+
+The `MediaLink` class is a sealed class that represents either a `Stream` or `Subtitle` source. It contains essential information needed for media playback.
+
+| Property | Description |
+|----------|-------------|
+| `name` | The name/label of the media link. |
+| `url` | The URL to the media source. |
+| `flags` | Set of constraint flags (e.g., IP restrictions, expiration). |
+| `description` | Optional description of the media link. |
+| `customHeaders` | A map of custom headers required if `RequiresAuth` flag is present. |
+
+For more information, check out the following references: 
+- [Flag](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider.link/-flag/index.html)
+- [MediaLink](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider.link/-media-link/index.html)
+
+## Example using TMDB
+
+<Steps>
+    <Steps.Step>
+        ### Override the getLinks method
+
+        Override the `getLinks` method in your `ProviderApi` class.
+
+        <Tip>
+            In Android Studio, `Ctrl + O` is the shortcut key for overriding methods and properties.
+        </Tip>
+
+        ```kotlin
+        override suspend fun getLinks(
+            watchId: String,
+            film: FilmDetails,
+            episode: Episode?,
+            onLinkFound: (MediaLink) -> Unit
+        ) {
+            // TODO
+        }
+        ```
+    </Steps.Step>
+    <Steps.Step>
+        ### Get watch providers from TMDB API
+
+        Create methods to handle the actual link fetching:
+
+        ```kotlin
+        val mediaType = film.filmType.type
+        val id = watchId // or film.tmdbId
+
+        require(mediaType == "movie" || mediaType == "tv") {
+            "Invalid media type: $mediaType"
+        }
+
+        val response = withIOContext {
+            client.request(
+                url = "https://www.themoviedb.org/${mediaType}/${id}/watch?locale=US"
+            ).execute()
+        }
+
+        ```
+        <Tip>
+            The quick dispatcher method `withIOContext` make development easier and faster. Check out [convenience methods for coroutines](/best_practices/convenience_methods#coroutines).
+        </Tip>
+    </Steps.Step>
+    <Steps.Step>
+        ### Parse response as HTML
+
+        Use the convenient method `Response.asJsoup()` to parse a `Response` object to an HTML one.
+
+        ```kotlin
+        val html = response.asJsoup()
+        ```
+    </Steps.Step>
+    <Steps.Step>
+        ### Scrape from HTML
+
+        With the help of Jsoup, it'll be easy to scrape the providers from the HTML code. Since TMDB provide legitimate and trusted providers, the `Flag.Trusted` will be useful here.
+
+        ```kotlin
+        html.select("div.ott_provider li a").forEach { element ->
+            val href = element.attr("href")
+            val title = element.attr("title")
+            val logoUrl = element.select("img").attr("src")
+
+            val providerName = title.split(" on ")
+                .lastOrNull()
+                ?.trim()
+                ?: "Unknown Provider"
+
+            // Extract the URL from the 'r' parameter in the href
+            val url = href.split("&r=")
+                .getOrNull(1)
+                ?.split("&")
+                ?.firstOrNull()
+                ?.let { URLDecoder.decode(it, "UTF-8") }
+
+            if (url != null && !streamingInfoList.any { it.url == url }) {
+                onLinkFound(
+                    Stream(
+                        name = providerName,
+                        description = title,
+                        url = url,
+                        flags = setOf(
+                            Flag.Trusted(
+                                name = providerName,
+                                logo = logoUrl
+                            )
+                        )
+                    )
+                )
+            }
+        }
+        ```
+
+        For more information about Jsoup, check its [documentation](https://jsoup.org/apidocs/).
+    </Steps.Step>
+</Steps>
+
+### Final output
+
+<Important>
+    Remember:
+    - The `onLinkFound` callback should be called as soon as each link is found.
+    - Both `Stream`s and `Subtitle`s are handled through the same callback.
+    - `Flag`s should be used to indicate any special requirements (auth, geo-restrictions, etc.).
+</Important>
+
+```kotlin
+override suspend fun getLinks(
+    watchId: String,
+    film: FilmDetails,
+    episode: Episode?,
+    onLinkFound: (MediaLink) -> Unit
+) {
+    val mediaType = film.filmType.type
+    val id = film.tmdbId
+    
+    require(mediaType == "movie" || mediaType == "tv") {
+        "Invalid media type: $mediaType"
+    }
+    
+    val response = withIOContext {
+        client.request(
+            url = "https://www.themoviedb.org/${mediaType}/${id}/watch?locale=US"
+        ).execute()
+    }
+
+    val html = response.asJsoup()
+    
+    html.select("div.ott_provider li a").forEach { element ->
+        val href = element.attr("href")
+        val title = element.attr("title")
+        val logoUrl = element.select("img").attr("src")
+    
+        val providerName = title.split(" on ")
+            .lastOrNull()
+            ?.trim()
+            ?: "Unknown Provider"
+    
+        // Extract the URL from the 'r' parameter in the href
+        val url = href.split("&r=")
+            .getOrNull(1)
+            ?.split("&")
+            ?.firstOrNull()
+            ?.let { URLDecoder.decode(it, "UTF-8") }
+    
+        if (url != null && !streamingInfoList.any { it.url == url }) {
+            onLinkFound(
+                Stream(
+                    name = providerName,
+                    description = title,
+                    url = url,
+                    flags = setOf(
+                        Flag.Trusted(
+                            name = providerName,
+                            logo = logoUrl
+                        )
+                    )
+                )
+            )
+        }
+    }
+}
+```
