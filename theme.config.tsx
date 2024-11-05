@@ -89,7 +89,7 @@ export default defineTheme({
                 ]),
                 group('Best practices', [
                     link('Coding style', '/best_practices/coding_style'),
-                    link('Development preferences', '/best_practices/dev_prefs'),
+                    // link('Development preferences', '/best_practices/dev_prefs'),
                 ]),
                 group('Advanced', [
                     link('WebView', '/advanced/webview'),
