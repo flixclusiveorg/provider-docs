@@ -87,6 +87,52 @@ Aim for small methods that perform a single task, improving readability and main
     // ✅
     ```
 
+### Create reusable components
+
+When implementing your provider's settings UI, it's preferred to extract common settings UI patterns into composable functions:
+
+<Note>
+    This also applies to non-Compose code.
+</Note>
+
+```kotlin
+@Composable
+fun SwitchPreference(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    // ...
+}
+
+@Composable
+fun TextPreference(
+    title: String,
+    value: Boolean,
+    onValueChange: (String) -> Unit,
+) {
+    // ...
+}
+
+@Composable
+fun SettingsCategory(
+    title: String,
+    content: @Composable () -> Unit
+) {
+    // ...
+}
+
+@Composable
+fun SettingsItem(
+    title: String,
+    description: String? = null,
+    icon: @Composable (() -> Unit)? = null,
+    content: @Composable () -> Unit
+) {
+    // ...
+}
+```
+
 ## The DONTs
 
 This section explains the pitfalls to avoid to when achieving code readability.

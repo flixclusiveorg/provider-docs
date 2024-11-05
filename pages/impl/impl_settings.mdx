@@ -4,7 +4,7 @@ Providers can have their own settings interface to allow users to configure prov
 
 ## Prerequisites
 
-Add these dependencies to your provider's `build.gradle.kts`:
+The app uses Compose as its main UI library. Add these dependencies to your provider's `build.gradle.kts`:
 ```kotlin
 dependencies {
     // ...
@@ -21,7 +21,7 @@ dependencies {
 <Warning>
     There is no need to specify Compose versions or BOM version in your provider's dependencies (unless required). The core stubs library already manages these versions. Adding explicit versions might cause version conflicts and runtime exceptions.
 
-    For reference, the app currently uses:
+    For reference, the app currently uses (might be be outdated, check the links below instead):
     - Compose BOM: `2024.09.02`
     - Kotlin: `1.9.10`
     - Kotlin Compose Compiler: `1.5.3`
@@ -128,154 +128,5 @@ settings.setUnknown("message", "Hello World!") // String
 - Get all setting keys: `settings.allKeys`
 
 For more information, see the [API reference](https://flixclusiveorg.github.io/core-stubs/provider/com.flixclusive.provider.settings/-provider-settings/index.html).
-
-## Best practices
-
-Here are recommended practices for creating maintainable and scalable settings UI using Compose:
-
-### Seperation of logic
-Create a dedicated class to manage your settings keys and defaults:
-
-```kotlin
-object ProviderPreferences {
-    // Settings Keys
-    const val KEY_HD_ENABLED = "hd_enabled"
-    const val KEY_API_KEY = "api_key"
-    const val KEY_SERVER_URL = "server_url"
-    
-    // Default Values
-    const val DEFAULT_SERVER_URL = "https://api.example.com"
-
-    // ...
-}
-```
-
-### Create reusable components
-Extract common settings UI patterns into composable functions:
-
-```kotlin
-@Composable
-fun SwitchPreference(
-    title: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
-    // ...
-}
-
-@Composable
-fun TextPreference(
-    title: String,
-    value: Boolean,
-    onValueChange: (String) -> Unit,
-) {
-    // ...
-}
-
-@Composable
-fun SettingsCategory(
-    title: String,
-    content: @Composable () -> Unit
-) {
-    // ...
-}
-
-@Composable
-fun SettingsItem(
-    title: String,
-    description: String? = null,
-    icon: @Composable (() -> Unit)? = null,
-    content: @Composable () -> Unit
-) {
-    // ...
-}
-```
-
-### Organize settings by category
-Group related settings together for better organization:
-
-```kotlin
-@Composable
-override fun SettingsScreen() {
-    LazyColumn {
-        item {
-            // General settings category
-            SettingsCategory(title = "General") {
-                SettingsItem(
-                    title = "HD Quality",
-                    description = "Enable high-quality streaming",
-                    icon = { Icon(Icons.Default.Hd, contentDescription = null) }
-                ) {
-                    Switch(
-                        checked = settings.getBool(ProviderPreferences.KEY_HD_ENABLED, false),
-                        onCheckedChange = { settings.setBool(ProviderPreferences.KEY_HD_ENABLED, it) }
-                    )
-                }
-            }
-            
-            // Server configuration category
-            SettingsCategory(title = "Server Configuration") {
-                SettingsItem(
-                    title = "API Key",
-                    icon = { Icon(Icons.Default.Key, contentDescription = null) }
-                ) {
-                    TextField(
-                        value = settings.getString(ProviderPreferences.KEY_API_KEY, "") ?: "",
-                        onValueChange = { settings.setString(ProviderPreferences.KEY_API_KEY, it) }
-                    )
-                }
-            }
-        }
-    }
-}
-```
-
-### Handle state changes efficiently
-Use `remember` and `derivedStateOf` for settings that depend on multiple values:
-
-<Tip>
-    Remember to handle configuration changes and state restoration properly. The `settings` property automatically handles persistence, but you should still manage your UI state appropriately.
-</Tip>
-
-```kotlin
-@Composable
-fun ServerConfigSection() {
-    var url by remember {
-        mutableStateOf(settings.getString(ProviderPreferences.KEY_SERVER_URL, 
-            ProviderPreferences.DEFAULT_SERVER_URL) ?: "")
-    }
-    
-    val isValidUrl by remember(url) {
-        derivedStateOf { 
-            URLUtil.isValidUrl(url)
-        }
-    }
-    
-    SettingsItem(
-        title = "Server URL",
-        description = if (!isValidUrl) "Invalid URL" else null
-    ) {
-        TextField(
-            value = url,
-            onValueChange = { 
-                url = it
-                settings.setString(ProviderPreferences.KEY_SERVER_URL, it)
-            },
-            isError = !isValidUrl
-        )
-    }
-}
-```
-
-For more info about compose states, look at its [documentation](https://developer.android.com/develop/ui/compose/state).
-
-### Follow Material3 design guidelines
-- Use consistent spacing and typography
-- Provide clear visual hierarchy
-- Add icons for better visual identification
-- Include descriptions for complex settings
-- Use appropriate input controls for each setting type
-
-For more information about Material3, look at its [guide site](https://m3.material.io/).
 
 
