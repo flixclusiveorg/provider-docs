@@ -109,24 +109,23 @@ For more information, check out the following references:
             val title = element.attr("title")
             val logoUrl = element.select("img").attr("src")
 
-            val providerName = title.split(" on ")
-                .lastOrNull()
-                ?.trim()
-                ?: "Unknown Provider"
+            var providerName = title.split(" on ").lastOrNull()?.trim()
+            if (providerName == null) {
+                providerName = "Unknown Provider"
+            }
 
             // Extract the URL from the 'r' parameter in the href
-            val url = href.split("&r=")
-                .getOrNull(1)
+            val url = href.split("&r=").getOrNull(1)
                 ?.split("&")
                 ?.firstOrNull()
-                ?.let { URLDecoder.decode(it, "UTF-8") }
 
-            if (url != null && !streamingInfoList.any { it.url == url }) {
+            if (url != null) {
+                val decodedUrl = URLDecoder.decode(url, "UTF-8")
                 onLinkFound(
                     Stream(
                         name = providerName,
                         description = title,
-                        url = url,
+                        url = decodedUrl,
                         flags = setOf(
                             Flag.Trusted(
                                 name = providerName,
@@ -179,24 +178,23 @@ override suspend fun getLinks(
         val title = element.attr("title")
         val logoUrl = element.select("img").attr("src")
     
-        val providerName = title.split(" on ")
-            .lastOrNull()
-            ?.trim()
-            ?: "Unknown Provider"
-    
+        var providerName = title.split(" on ").lastOrNull()?.trim()
+        if (providerName == null) {
+            providerName = "Unknown Provider"
+        }
+
         // Extract the URL from the 'r' parameter in the href
-        val url = href.split("&r=")
-            .getOrNull(1)
+        val url = href.split("&r=").getOrNull(1)
             ?.split("&")
             ?.firstOrNull()
-            ?.let { URLDecoder.decode(it, "UTF-8") }
-    
-        if (url != null && !streamingInfoList.any { it.url == url }) {
+
+        if (url != null) {
+            val decodedUrl = URLDecoder.decode(url, "UTF-8")
             onLinkFound(
                 Stream(
                     name = providerName,
                     description = title,
-                    url = url,
+                    url = decodedUrl,
                     flags = setOf(
                         Flag.Trusted(
                             name = providerName,
