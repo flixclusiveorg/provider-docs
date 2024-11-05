@@ -62,7 +62,7 @@ Aim for small methods that perform a single task, improving readability and main
     ```kotlin
     override suspend fun getLinks(
         // ...
-    ) {EXTRACTOR1
+    ) {
         // Fetch API
         // Parse HTML
         // Execute extractor
@@ -101,7 +101,7 @@ It's the need to create an interface that only has one implementation. This only
 
 ### Avoid overly complex expressions
 
-When creating providers, the tendency to combine too many operations in a single line can make code difficult to read and maintain. Prioritize readability by breaking complex expressions into multiple, simpler statements.
+When creating providers, the tendency to combine too many operations in a single line is difficult to avoid. This can make code difficult to read and maintain. Prioritize readability by breaking complex expressions into multiple, simpler statements.
 
 - Bad example:
     ```kotlin
@@ -138,7 +138,7 @@ While descriptive names are important for code readability, excessively long nam
 
 - Good example:
     ```kotlin
-    fun getMediaLinks(): Double
+    fun getMediaLinks(): List<MediaLink>
         = // ...
     // ✅
     ```
