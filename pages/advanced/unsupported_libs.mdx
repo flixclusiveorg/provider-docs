@@ -1,1 +1,33 @@
 # Unsupported libraries
+
+<Caution>
+    This is an experimental feature and should be used with caution. Consider alternatives before adding external libraries this way.
+</Caution>
+
+This guide provides information how to include libraries that the app doesn't use.
+
+## Configuration
+
+To include external libraries that aren't part of the main application, you'll need to use the `fatImplementation` configuration instead of the standard `implementation` in your Gradle build file.
+
+For instance, using 
+
+```kotlin
+dependencies {
+    // DON'T use this
+    // implementation("com.example.network:NetworkClient:1.0.0")
+    
+    // Instead, use fatImplementation
+    fatImplementation("com.example.network:NetworkClient:1.0.0")
+}
+```
+
+## Important notes
+
+- The `fatImplementation` configuration ensures that the library and its dependencies are properly bundled with the package that the gradle command, `:make`, creates.
+- Using `fatImplementation` will increase your provider's file size and build time.
+- Some libraries might not work correctly when bundled this way.
+- Using the standard `implementation` configuration may result in runtime errors such as:
+  - `ClassNotFoundException`
+  - `MethodNotFoundException`
+  - `NoClassDefFoundError`

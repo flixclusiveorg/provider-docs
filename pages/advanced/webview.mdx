@@ -1,1 +1,187 @@
 # WebView
+
+<Caution>
+    This feature requires careful implementation as it uses Javascript interactively and may impact device resources. Implement with caution.
+</Caution>
+
+## Overview
+
+When implementing a provider that requires web-based interactions (such as handling CAPTCHAs or Cloudflare challenges), you should use `ProviderWebViewApi` instead of the standard `ProviderApi`. This specialized API class supports WebView integration for fetching media links and handling interactive web elements.
+
+### ProviderWebViewApi
+
+This is the base class for providers that need WebView functionality. Instead of extending `ProviderApi`, your provider should extend `ProviderWebViewApi`:
+
+```kotlin
+class MyProvider(client: OkHttpClient, context: Context) : ProviderWebViewApi(
+    client = client,
+    provider = Provider(...),
+    context = context
+)
+```
+
+### ProviderWebView
+
+An abstract class that handles the actual WebView implementation:
+
+```kotlin
+class MyProviderWebView(context: Context) : ProviderWebView(context) {
+    override suspend fun getLinks(
+        watchId: String,
+        film: FilmDetails,
+        episode: Episode?,
+        onLinkFound: (MediaLink) -> Unit
+    ) {
+        // Your implementation here
+    }
+}
+```
+
+This class is a subclass of `WebViewDriver` which acts similar to WebDriver in selenium or other web crawler tools. For more information about this parent class, check out its [API reference](https://flixclusiveorg.github.io/core-stubs/core-util/com.flixclusive.core.util.webview/-web-view-driver/index.html).
+
+## Configuration
+
+The `ProviderWebView` instance contains abstract properties that are necessary to override for configuration purposes.
+
+### Running headless
+
+The abstract class contains a property `isHeadless` property. Setting this to true will run the WebView on the background without UI.
+
+```kotlin
+override val isHeadless: Boolean = true
+```
+
+### Managing WebView data
+
+The abstract class also contains properties pertaining to the WebView data.
+
+```kotlin
+override val shouldClearCache: Boolean = false
+override val shouldClearCookies: Boolean = false
+override val shouldClearHistory: Boolean = false
+override val shouldClearFormData: Boolean = false
+override val shouldClearWebStorage: Boolean = false
+override val shouldClearSslPreferences: Boolean = false
+```
+
+## Example for CAPTCHA solving
+
+<Note>
+    The template repository has a sample provider that uses WebView. Check it out [here](https://github.com/flixclusiveorg/provider-template/tree/f52ec47031b411ec590c50d7e45c6ffdfc1b61ec/providers/BasicDummyWebViewProvider/src/main/kotlin/com/flixclusive/provider/basic_dummy_webview_provider).
+</Note>
+
+This sample is a WebView implementation specifically for handling CAPTCHAs with timeout functionality:
+
+
+```kotlin
+class CaptchaSolverWebView(context: Context) : ProviderWebView(context) {
+    override val name = "CAPTCHA Solver WebView"
+    // Set to false since we need UI for CAPTCHA interaction
+    override val isHeadless = false
+    
+    override val shouldClearCache = true
+    override val shouldClearCookies = true
+
+    companion object {
+        private const val TIMEOUT_MS = 120_000L // 2 minutes timeout
+    }
+
+    @SuppressLint("SetJavaScriptEnabled")
+    override suspend fun getLinks(
+        watchId: String,
+        film: FilmDetails,
+        episode: Episode?,
+        onLinkFound: (MediaLink) -> Unit
+    ) {
+        try {
+            withTimeout(TIMEOUT_MS) {
+                // Enable JavaScript and required WebView settings
+                settings.apply {
+                    javaScriptEnabled = true
+                    domStorageEnabled = true
+                }
+
+                webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView?, url: String?) {
+                        super.onPageFinished(view, url)
+                        // Check for CAPTCHA presence using JavaScript
+                        evaluateJavascript(
+                            """
+                            (function() {
+                                return document.querySelector('.g-recaptcha') !== null;
+                            })();
+                            """.trimIndent()
+                        ) { /* Handle CAPTCHA detection result */ }
+                    }
+
+                    // Monitor requests for media links
+                    override fun shouldInterceptRequest(
+                        view: WebView?,
+                        request: WebResourceRequest?
+                    ): WebResourceResponse? {
+                        // Handle media URL detection and create MediaLink objects
+                        return super.shouldInterceptRequest(view, request)
+                    }
+                }
+
+                loadUrl("https://example.com/watch/$watchId")
+                
+                // Wait for CAPTCHA to be solved
+                // ... CAPTCHA resolution check logic ...
+            }
+        } catch (e: TimeoutCancellationException) {
+            throw ProviderError.Timeout("CAPTCHA solving timeout exceeded")
+        } finally {
+            destroy() // Clean up resources
+        }
+    }
+}
+```
+
+<Tip>
+    On another note, you must keep the following in mind when you're implementing a custom WebView API:
+
+    1. **Manage memory efficiently**
+        - Always call `destroy()` when finished with the WebView
+        - Clear unnecessary data using the provided boolean flags
+        - Handle cleanup in both headless and non-headless modes
+
+    2. **Handle unexpected errors**
+        - Implement proper error handling for web interactions
+        - Consider timeout scenarios
+        - Handle JavaScript execution failures
+
+    3. **Consider your users**
+        - Minimize WebView instances
+        - Use headless mode when UI isn't required
+        - Clear resources appropriately using the provided flags
+        - Use a timer, such as [`withTimeout`](https://kotlinlang.org/api/kotlinx.coroutines/kotlinx-coroutines-core/kotlinx.coroutines/with-timeout.html), to run the WebView for a minimum amount of time.
+</Tip>
+
+
+
+### Cookie manager
+
+When you need to handle cookies, it's the same with how you handle cookies in a WebView class:
+```kotlin
+val cookieManager = CookieManager.getInstance()
+cookieManager.setAcceptCookie(true)
+cookieManager.setAcceptThirdPartyCookies(webView, true)
+```
+
+### Web storage
+
+The same applies when you need to use web storage, everything is based from the base WebView class:
+```kotlin
+val webStorage = WebStorage.getInstance()
+// Clear storage when needed
+webStorage?.deleteAllData()
+```
+
+## Common issues
+
+These are the common issues that makes this feature a pain in the ass to use:
+
+1. Memory leaks
+2. Thread Issues
+3. Resource Consumption
