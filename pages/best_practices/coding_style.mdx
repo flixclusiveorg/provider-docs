@@ -44,14 +44,20 @@ Always group related classes together by *feature*, not by type. This structure 
 ```
 └── com.example.testProvider/
     ├── api/
-    │   ├── TestProviderApi.kt
-    │   └── ... other API related files
+    │   ├── search/
+    │   │   └── TestSearchApi.kt
+    │   ├── catalog/
+    │   │   └── TestCatalogApi.kt
+    │   ├── metadata/
+    │   │   └── TestMetadataApi.kt
+    │   └── links/
+    │       └── TestMediaLinkApi.kt
     ├── settings/
     │   ├── MySettingsScreen.kt
     │   └── ... other compose related files
     ├── common/
     │   └── ... helper classes/methods
-    └── TestProvider.kt
+    └── TestProviderPlugin.kt
 ```
 
 ### Keep methods short and focused
@@ -60,28 +66,30 @@ Aim for small methods that perform a single task, improving readability and main
 
 - Bad example:
     ```kotlin
-    override suspend fun getLinks(
-        // ...
-    ) {
+    override fun getLinks(
+        film: FilmMetadata,
+        episode: Episode?,
+    ): Flow<MediaLink> = flow {
         // Fetch API
         // Parse HTML
         // Execute extractor
-        // Return to callback
+        // Emit links
     }
     // ❌
     ```
 
 - Good example:
     ```kotlin
-    override suspend fun getLinks(
-        // ...
-    ) {
-        val response = fetchApi(...)
-        val html = parseResponse(...)
-        val links = extractor.run(...)
-        
+    override fun getLinks(
+        film: FilmMetadata,
+        episode: Episode?,
+    ): Flow<MediaLink> = flow {
+        val response = fetchApi(film, episode)
+        val html = parseResponseAsHtml(response)
+        val links = extractor.run(html)
+
         for (link in links) {
-            onLinkLoaded(link)
+            emit(link)
         }
     }
     // ✅
@@ -162,8 +170,8 @@ When creating providers, the tendency to combine too many operations in a single
 - Good example:
     ```kotlin
     val movieCatalogs = catalogs.filter { it.isMovie }
-    val namesOfMovieCatalogs = movieCatalogs.map { it.name }
-    val topFiveMovieCatalogs = doubledValues.sortedDescending().take(5)
+    val catalogNames = movieCatalogs.map { it.name }
+    val topFiveCatalogNames = catalogNames.sortedDescending().take(5)
     // ✅
     ```
 

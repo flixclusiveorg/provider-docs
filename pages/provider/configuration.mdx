@@ -1,486 +1,226 @@
 # Configuration
 
-This guide assumes that you have completed all [Getting Started](/getting-started/installation) steps. By the end of this guide, you will know how to configure your provider’s information and create a new provider called `TestProvider`.
+This guide assumes you have completed all [Getting Started](/getting-started/installation) steps.
+By the end, you will know where to configure:
 
-## Gradle setup
+- Gradle/plugin setup (already provided by the template)
+- Which provider modules are included (`settings.gradle.kts`)
+- Provider identity/metadata via `flxProvider { ... }`
 
-The template repository already includes this setup, but it’s still recommended to read through this section to prevent potential build errors.
+## Gradle setup (provider-template)
 
-Every provider you create relies on two core APIs to function correctly. These APIs contain the Gradle tasks, API methods, and extensions you’ll need for creating and packaging your provider.
+The template repository already sets up everything you need:
 
-### Core gradle plugin
+- The `flx-provider` Gradle plugin (adds tasks like `:make` and `:deployWithAdb`)
+- The `core-stubs` provider SDK dependency
 
-This plugin provides the tasks and extensions used by Kotlin DSL to help package all your providers.
+### Where to change versions
 
-It’s implemented in the root project `build.gradle.kts` file as a dependency using the following code:
+In the template, versions are managed in `gradle/libs.versions.toml`.
+
+```toml
+[versions]
+core-gradle = "..."
+core-stubs = "..."
+```
+
+<Note>
+    When you upgrade `core-stubs`, you should also consider upgrading `core-gradle` so the plugin
+    and SDK stay compatible.
+</Note>
+
+### flx-provider plugin wiring
+
+The template applies the plugin for all provider modules from the root `build.gradle.kts`.
+This is the recommended setup:
+
 ```kotlin
-buildscript {
-    repositories {
-        // ... other repositories
-        maven("https://jitpack.io")
+subprojects {
+    apply(plugin = "flx-provider")
+
+    android {
+        // compileSdk/minSdk, etc.
     }
 
-    dependencies {
-        // ... other dependencies
-
-        val latestVersion = "..."
-        // Flixclusive gradle plugin which facilitates provider creation and builds
-        classpath("com.github.flixclusiveorg.core-gradle:core-gradle:$latestVersion")
+    flxProvider {
+        // shared metadata for all providers (author + repo)
     }
 }
 ```
-<Note>The latest version of the core Gradle plugin can be found [here](https://github.com/flixclusiveorg/core-gradle/releases/latest).</Note>
 
-Then, apply the Flixclusive provider plugin as follows. You can do this in either the project-level or module-level `build.gradle.kts` file.
+<Tip>
+    If you keep this root `subprojects { ... }` block, you usually do not need to apply
+    `flx-provider` in each module.
+</Tip>
 
-<CodeGroup>
-    <CodeGroup.Code title='build.gradle.kts (project level)'>
-        ```kotlin
-        subprojects {
-            apply(plugin = "flx-provider")
-            // ...
-        }
-        ```
-    </CodeGroup.Code>
-    <CodeGroup.Code title='build.gradle.kts (module level)'>
-        ```kotlin
-        plugins {
-            id("flx-provider")
-            // ... other plugins
-        }
-        ```
-    </CodeGroup.Code>
-</CodeGroup>
+### core-stubs library dependency
 
-### Core stubs library
+Each provider module should depend on the provider SDK:
 
-This library contains all stubs, entities, and utility classes required to develop a provider.
+```kotlin
+dependencies {
+    implementation(libs.core.stubs.provider)
+}
+```
 
-It’s used as a regular library and can be implemented at either the project or module level in the `build.gradle.kts` file.
-
-<CodeGroup>
-    <CodeGroup.Code title='build.gradle.kts (project level)'>
-        ```kotlin
-        subprojects {
-            // ...
-            
-            dependencies {
-                val implementation by configurations
-                val testImplementation by configurations
-                // ... other configurations
-
-                val coreStubsModule = "com.github.flixclusiveorg.core-stubs:provider"
-                val coreStubsVersion = "..."
-
-                implementation("$coreStubsModule:$coreStubsVersion")
-                testImplementation("$coreStubsModule:$coreStubsVersion")
-                // ... other dependencies
-            }
-        }
-        ```
-    </CodeGroup.Code>
-    <CodeGroup.Code title='build.gradle.kts (module level)'>
-        ```kotlin
-        dependencies {
-            val coreStubsModule = "com.github.flixclusiveorg.core-stubs:provider"
-            val coreStubsVersion = "..."
-
-            implementation("$coreStubsModule:$coreStubsVersion")
-            testImplementation("$coreStubsModule:$coreStubsVersion")
-            // ... other dependencies
-        }
-        ```
-    </CodeGroup.Code>
-</CodeGroup>
-<Note>The latest version of the core stubs library can be found [here](https://github.com/flixclusiveorg/core-stubs/releases/latest).</Note>
+If you are not using the version catalog, look at the template’s `gradle/libs.versions.toml`
+for the exact Maven coordinates.
 
 ## Configuring `settings.gradle.kts`
 
-This section involves *manually* editing and adding files to your project. This step is essential to read if you've followed the "[Creating a custom provider](/getting-started/installation#creating-a-custom-provider)" step on the "[Getting started](/getting-started/installation)" section.
+Every provider module must be included so Gradle/Android Studio recognizes it.
 
-### Changing the project structure
-
-<Tip>
-    The template repository already uses a recommended project structure, where all provider modules are stored in the `providers` folder. You can skip this step if your project follows this setup.
-</Tip>
-
-To create a new provider called `TestProvider` with its own folder at the root project level rather than inside the `providers` folder, remove the following code from `settings.gradle.kts`:
 ```kotlin
+include(
+    "BasicDummyProvider",
+    "TestProvider", // <- newly created provider
+)
+
+// This template keeps provider modules under the providers/ folder
 rootProject.children.forEach {
     it.projectDir = file("providers/${it.name}")
 }
 ```
 
-Alternatively, if you want to rename the `providers` folder to something else, like `extensions`, modify the code as follows:
-```kotlin
-rootProject.children.forEach {
-    it.projectDir = file("extensions/${it.name}")
-}
-```
+<Note>
+    This also applies when renaming or deleting provider modules.
+</Note>
 
-### Creating new providers
+## Customizing provider metadata (`flxProvider`)
 
-<Note>This section also applies when *deleting* or *renaming* a provider module.</Note>
+Provider identity + metadata is represented by:
 
-While template providers are included in the repository, it’s likely that you’ll create additional providers in the future.
+- `ProviderMetadata` (formerly `ProviderData`)
+- `ProviderManifest` (runtime manifest)
 
-Assuming you created a `TestProvider` folder for a new custom provider, Android Studio requires you to include this module in the project settings to recognize it as part of the project.
-
-To do this, modify `settings.gradle.kts` as follows:
-```kotlin
-include(
-    "BasicDummyProvider",
-    "BasicDummyWebViewProvider",
-    "TestProvider",                 // <- newly created provider
-)
-```
-
-## Customizing the provider data
-
-Every provider needs enough information to identify itself and declare its capabilities. This is represented by the `ProviderData` class. The `TestProvider` provider will be used here on this part of this guide as an example on how to customize its provider data.
-
-The properties of the entity class are customizable through the [`flxProvider`](https://github.com/flixclusiveorg/provider-template/blob/f52ec47031b411ec590c50d7e45c6ffdfc1b61ec/build.gradle.kts#L32) extension provided by the [custom plugin](#core-gradle-plugin) mentioned earlier.
-
+You do not construct these manually — they’re generated by the Gradle plugin from your
+`flxProvider { ... }` configuration.
 
 ### Basic identity
 
-<Steps>
-    <Steps.Step>
-        #### Name (optional)
+Key fields you should set in each provider module’s `build.gradle.kts`:
 
-        <Tip>
-            Manually set the name of your provider if it requires spaces or unsupported symbols.
-        </Tip>
+```kotlin
+import com.flixclusive.model.provider.ProviderStatus
+import com.flixclusive.model.provider.Language
+import com.flixclusive.model.provider.ProviderType
 
-        The name of the provider. This is optional to configure as the gradle plugin *automatically* inherits the module/project name of the provider package.
+flxProvider {
+    // Required: stable, unique identifier (keep this constant across releases)
+    id = "prov-test-provider"
 
-        ```kotlin
-        flxProvider {
-            providerName.set("Test Provider")
-            // ... other custom properties
-        }
-        ```
-    </Steps.Step>
-    <Steps.Step>
-        #### Version
+    // Optional display fields
+    providerName = "Test Provider"
+    description = "A sample provider."
 
-        The version of the provider should follow semver. It contains four versions:
-        - major version
-        - minor version
-        - patch version
-        - build version
+    // Versioning
+    versionMajor = 1
+    versionMinor = 0
+    versionPatch = 0
+    versionBuild = 0
 
-        These four produce two outputs, a stringified (called version name) and an integer/long output (called version code).
+    status = ProviderStatus.Working
 
-        For instance, if we have the following versions:
-        ```
-        major = 3
-        minor = 2
-        patch = 0
-        build = 2
-        ```
+    // Content specs
+    language = Language.Multiple
+    providerType = ProviderType.All
+    adult = false
 
-        The version name should output a string like `3.2.0`. Notice how build is not included in the version name.
+    // Build options
+    requiresResources = true
+    // excludeFromUpdaterJson = true
+}
+```
 
-        On the other hand, the version code contains the integer version and would output something like `32002`
+<Note>
+    Some projects still use `Status` as a deprecated alias for `ProviderStatus`.
+    Prefer `ProviderStatus` for new code.
+</Note>
 
-        ---
+### Source information (shared)
 
-        To set the versions, use the following code as a guide:
-        ```kotlin
-        flxProvider {
-            versionMajor = 1
-            versionMinor = 0
-            versionPatch = 0
-            versionBuild = 0
-            // ... other custom properties
-        }
-        ```
-    </Steps.Step>
-    <Steps.Step>
-        #### Status
+It’s common to configure author info + repository URL once in the root `build.gradle.kts`,
+so every provider module inherits it:
 
-        The current operational state of your provider. These are the possible values you could set:
-        - [Status.Beta](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider/-status/-beta/index.html)
-        - [Status.Maintenance](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider/-status/-maintenance/index.html)
-        - [Status.Down](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider/-status/-down/index.html)
-        - [Status.Working](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider/-status/-working/index.html)
+```kotlin
+subprojects {
+    flxProvider {
+        author(
+            name = "your-handle",
+            image = "https://github.com/your-handle.png",
+            socialLink = "https://github.com/your-handle",
+        )
 
-        ```kotlin
-        flxProvider {
-            status.set(Status.Working)
-            // ... other custom properties
-        }
-        ```
-    </Steps.Step>
-    <Steps.Step>
-        #### Authors (optional)
+        setRepository("https://github.com/your-handle/your-providers-repo")
+    }
+}
+```
 
-        For accreditation purposes, the provider allows displaying the rightful owners of the provider. This can be helpful if you need to plug your github portfolio or dev community.
+### Changelog (optional)
 
-        ```kotlin
-        flxProvider {
-            author(
-                name = "flixclusiveorg",
-                image = "http://github.com/flixclusiveorg.png",
-                socialLink = "http://github.com/flixclusiveorg",
-            )
-            // ... other custom properties
-        }
-        ```
-    </Steps.Step>
-    <Steps.Step>
-        #### Description (optional)
-
-        The description of whatever your provider does.
-
-        ```kotlin
-        flxProvider {
-            description.set(
-                """
-                Some description here.
-                """.trimIndent()
-            )
-            // ... other custom properties
-        }
-        ```
-    </Steps.Step>
-    <Steps.Step>
-        #### Icon (optional)
-
-        This serves a visual representation of your provider in the app.
-
-        ```kotlin
-        flxProvider {
-            iconUrl.set("https://example.com/my_image.png")
-            // ... other custom properties
-        }
-        ```
-    </Steps.Step>
-</Steps>
-
-### Source information
-
-<Steps>
-    <Steps.Step>
-        #### Repository URL
-
-        This sets where users can find your provider's source code and what the core gradle plugin will use as a basis to find the updater file in your repository.
-
-        <Tip>
-            It is recommended to use this code on the project level `build.gradle.kts` file.
-        </Tip>
-
-        ```kotlin
-        // Project level build.gradle.kts
-
-        fun Project.flxProvider(configuration: FlixclusiveProviderExtension.() -> Unit)
-            = extensions.getFlixclusive().configuration()
-
-        subprojects {
-            //...
-
-            flxProvider {
-                setRepository("https://github.com/flixclusiveorg/providers-template")
-                // ... other custom properties
-            }
-        }
-        ```
-    </Steps.Step>
-    <Steps.Step>
-        #### Changelogs (optional)
-
-        This should contain all the changes your provider had gone through from its recent updates. This supports [markdown](https://www.markdownguide.org/getting-started/).
-
-        ```kotlin
-        flxProvider {
-            changelog.set(
-                """
-                # 1.2.3
-                ---
-
-                Some changes here.
-                """.trimIndent()
-            )
-            // ... other custom properties
-        }
-        ```
-    </Steps.Step>
-</Steps>
-
-### Content specifications
-
-<Steps>
-    <Steps.Step>
-        #### Content type
-
-        This displays whether your provider handles content for movies, series, both, or a custom one. These are the possible values you could set:
-        - [ProviderType.All](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider/-provider-type/-companion/-all.html)
-        - [ProviderType.TvShows](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider/-provider-type/-companion/-tv-shows.html)
-        - [ProviderType.Movies](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider/-provider-type/-companion/-movies.html)
-        - [ProviderType(customType: String)](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider/-provider-type/index.html)
-
-
-        ```kotlin
-        flxProvider {
-            providerType.set(ProviderType.All)
-            // providerType.set(ProviderType("Anime"))
-            // ... other custom properties
-        }
-        ```
-    </Steps.Step>
-    <Steps.Step>
-        #### Language
-
-        This tells the app what language this provider supports. These are the possible values you could set:
-        - [Language.Multiple](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider/-language/-companion/-multiple.html)
-        - [Language(languageCode: String)](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider/-language/index.html)
-
-
-        ```kotlin
-        flxProvider {
-            language.set(Language.Multiple)
-            // language.set(Language("en"))
-            // ... other custom properties
-        }
-        ```
-    </Steps.Step>
-    <Steps.Step>
-        #### Adult content (optional)
-
-        This sets whether the provider is for adult only.
-
-        ```kotlin
-        flxProvider {
-            adult.set(false)
-            // ... other custom properties
-        }
-        ```
-    </Steps.Step>
-</Steps>
-
-### Build specifications
-
-This part is not included on the `ProviderData` entity but it is required for `ProviderManifest` and build options when you're finally running the provider in the app. Most properties here are optional.
-
-<Steps>
-    <Steps.Step>
-        #### Requires resources (optional)
-
-        This flag tells the core gradle plugin that your provider uses its own resources (i.e., images, vectors, strings, etc.). Failure to toggle this option while you have resources might lead to runtime exceptions.
-
-        ```kotlin
-        flxProvider {
-            requiresResources.set(false)
-            // ... other custom properties
-        }
-        ```
-    </Steps.Step>
-    <Steps.Step>
-        #### Unpublish provider (optional)
-
-        <Tip>Use this when you're still testing out a beta provider and you are required to push it on your remote publicly.</Tip>
-
-        This flag tells the core gradle plugin that your provider should be unpublished and not be included on the final providers list that it will build. It will *hide* the provider from the downloads list on your repository page.
-
-        ```kotlin
-        flxProvider {
-            excludeFromUpdaterJson.set(false)
-            // ... other custom properties
-        }
-        ```
-    </Steps.Step>
-</Steps>
+```kotlin
+flxProvider {
+    changelog = """
+    # 1.2.3
+    ---
+    - Added X
+    - Fixed Y
+    """.trimIndent()
+}
+```
 
 ## Final output
 
-Most code on the indicated files below are still referenced from the tempalate repository and are still *unchanged*. These are just some of the few that were configured.
-
 <CodeGroup>
-    <CodeGroup.Code title='build.gradle.kts (module level of TestProvider)'>
+    <CodeGroup.Code title='providers/TestProvider/build.gradle.kts'>
         ```kotlin
-        // ... other code
+        // ... dependencies + android { namespace = "..." }
 
         flxProvider {
-            // ====== Provider Information =======
-            providerName.set("Test Provider")
+            id = "prov-test-provider"
+            providerName = "Test Provider"
+            description = "A sample provider."
 
             versionMajor = 1
             versionMinor = 0
             versionPatch = 0
             versionBuild = 0
-            
-            status.set(Status.Working)
 
-            author(
-                name = "flixclusiveorg",
-                image = "http://github.com/flixclusiveorg.png",
-                socialLink = "http://github.com/flixclusiveorg",
-            )
+            // See ProviderStatus in core-stubs
+            status = ProviderStatus.Working
 
-            description.set(
-                """
-                Some description here.
-                """.trimIndent()
-            )
+            providerType = ProviderType.All
+            language = Language.Multiple
+            adult = false
 
-            iconUrl.set("https://example.com/my_image.png")
-
-            changelog.set(
-                """
-                # 1.2.3
-                ---
-        
-                Some changes here.
-                """.trimIndent()
-            )
-
-            providerType.set(ProviderType.All)
-            
-            language.set(Language.Multiple)
-
-            adult.set(false)
-            // ================
-
-
-            // === Build options ===
-            requiresResources.set(true)
-
-            excludeFromUpdaterJson.set(false)
-            // =================
+            requiresResources = true
         }
         ```
     </CodeGroup.Code>
-    <CodeGroup.Code title='build.gradle.kts (project level)'>
+    <CodeGroup.Code title='build.gradle.kts (root)'>
         ```kotlin
-        // ... other code
-
-        fun Project.flxProvider(configuration: FlixclusiveProviderExtension.() -> Unit)
-            = extensions.getFlixclusive().configuration()
-
         subprojects {
-            // ...
-            
             flxProvider {
-                setRepository("https://github.com/flixclusiveorg/providers-template")
-                // ... other configurations
+                author(
+                    name = "your-handle",
+                    image = "https://github.com/your-handle.png",
+                    socialLink = "https://github.com/your-handle",
+                )
+                setRepository("https://github.com/your-handle/your-providers-repo")
             }
-
-            // ...
         }
         ```
     </CodeGroup.Code>
     <CodeGroup.Code title='settings.gradle.kts'>
         ```kotlin
-        // ... other code
-
         include(
             "BasicDummyProvider",
-            "BasicDummyWebViewProvider",
             "TestProvider",
         )
 
-        // ... other code
+        rootProject.children.forEach {
+            it.projectDir = file("providers/${it.name}")
+        }
         ```
     </CodeGroup.Code>
 </CodeGroup>

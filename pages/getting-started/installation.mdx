@@ -1,6 +1,6 @@
 # Installation
 
-This guide provides the steps how to initialize and prepare the required tools to create your own provider.
+This guide provides the steps to initialize and prepare the required tools to create your own provider.
 
 ## Prerequisites
 
@@ -9,90 +9,65 @@ Before you start creating a provider, ensure you have:
 - [Android Studio](https://developer.android.com/studio)
 - [Java Development Kit (JDK)](https://developer.android.com/build/jdks#jdk-gradle)
 - [Git](https://git-scm.com/downloads)
-- Knowledge on [Kotlin](https://kotlinlang.org/docs/getting-started.html) and [Android](https://developer.android.com/get-started/overview) programming
-- Flixclusive app (debug or release version)
-- SOME PATIENCE FOR READING FFS!
+- Basic knowledge of [Kotlin](https://kotlinlang.org/docs/getting-started.html) and [Android](https://developer.android.com/get-started/overview)
+- The Flixclusive app (debug or release version)
 
 ## Initial setup
 
 <Steps>
     <Steps.Step>
-        ### Cloning the provider template
+        ### Clone the provider template
 
-        - Visit the [template repository](https://github.com/flixclusiveorg/provider-template)
-        - Click the `Use this template` button
-        - Then click `Create a new repository`.
+        - Visit the [provider template repository](https://github.com/flixclusiveorg/provider-template)
+        - Click **Use this template** → **Create a new repository**
 
         <Warning>
-            When cloning the repository, it is important to toggle the **Include all branches** option. Failure to do so will lead up to future build problems.
+            When using the template, make sure to enable **Include all branches**.
+            The template’s CI setup depends on the additional branch.
         </Warning>
     </Steps.Step>
     <Steps.Step>
-        ### Configuring the provider
+        ### Configure author + repository
 
-        1. Open `build.gradle.kts` in the root directory and update the placeholders for the main *author/s* and the *repository url*:
-            ```kotlin
-            fun Project.flxProvider(configuration: FlixclusiveProviderExtension.() -> Unit)
-                = extensions.getFlixclusive().configuration()
+        Open the root `build.gradle.kts` and update the shared provider metadata.
+        In the template, this is typically set once in a `subprojects { ... }` block:
 
-            subprojects {
-                // ...
+        ```kotlin
+        subprojects {
+            flxProvider {
+                author(
+                    name = "provider-author",
+                    image = "https://github.com/provider-author.png",
+                    socialLink = "https://github.com/provider-author",
+                )
 
-                // Fill out with your info
-                flxProvider {
-                    author(
-                        name = "provider-author",
-                        image = "http://github.com/example.png",
-                        socialLink = "http://github.com/example",
-                    )
-                    // author( ... )
-
-                    setRepository("https://github.com/example/example")
-                }
+                setRepository("https://github.com/provider-author/my-providers-repo")
             }
-            ```
-        2. If you wish to pre-configure and *automate* all package names or namespace for each provider, edit the namespace for every provider inside the same file you opened on the previous step:
-            ```kotlin
-            fun Project.android(configuration: BaseExtension.() -> Unit)
-                = extensions.getByName<BaseExtension>("android").configuration()
-                
-            subprojects {
-                // ...
-
-                android {
-                    val providerPackageName = name
-                        .replace("-", "_")
-                        .replaceFirstChar { it.lowercase() }
-
-                    namespace = "com.example.$providerPackageName"
-                }
-            }
-            ```
-    </Steps.Step>
-    <Steps.Step>
-        ### Creating a custom provider
-
-        <Tip>
-            The `providers` folder is the *recommended* folder on where to store your providers. Inside it contains two placeholder/template providers that has well-documented code to help and guide you navigate and understand on how to customize your own provider.
-        </Tip>
-
-        Customize the example provider in the `providers` folder or create a new one by following the project structure:
-            ```
-            TestProvider/
-            ├── build.gradle.kts            # Provider-specific build configuration
-            ├── src/
-            │   └── main/
-            │       ├── kotlin/             # Your provider's source code
-            │       │   └── com/
-            │       │       └── example/
-            │       │           └── testProvider/
-            │       │               └── TestProvider.kt
-            │       └── res/                # Resources (if needed)
-            └── README.md                   # Provider-specific documentation (optional)
-            ```
+        }
+        ```
 
         <Note>
-            When creating your own provider or modifying a provider's module/folder name you must also edit the `settings.gradle.kts` on the root project and edit the include block. For more details, check out the [provider configuration section.](/provider/configuration#configuring-settings-gradle-kts)
+            Your provider module(s) will still have their own `flxProvider { ... }` block
+            for provider-specific settings like `id`, version, language, and type.
+        </Note>
+    </Steps.Step>
+    <Steps.Step>
+        ### Create or customize a provider module
+
+        <Tip>
+            This template keeps provider modules under the `providers/` folder.
+            It includes an example provider you can use as a starting point.
+        </Tip>
+
+        You can either:
+
+        - Customize `providers/BasicDummyProvider`, or
+        - Copy it to a new module folder (e.g., `providers/TestProvider/`)
+
+        <Note>
+            When creating, deleting, or renaming a provider module, you must also update the
+            `include(...)` block in `settings.gradle.kts`.
+            For more details, see the [provider configuration section](/provider/configuration#configuring-settings-gradle-kts).
         </Note>
     </Steps.Step>
 </Steps>

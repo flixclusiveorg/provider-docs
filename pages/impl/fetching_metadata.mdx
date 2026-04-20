@@ -1,235 +1,159 @@
 # Fetching metadata
 
-This section covers implementing the `getFilmDetails` method for your provider, with TMDB API as a reference.
+This guide shows how to fetch detailed metadata using the capability-first `MetadataProviderApi`.
 
 ## Overview
 
-The `getFilmDetails` method in `ProviderApi` is designed to fetch detailed metadata for a media item. It's meant to be overridden by each provider to suit specific metadata requirements.
-
-The `Film` parameter often contains only basic metadata, which is why it's passed to this method to retrieve the detailed metadata.
+To support metadata, expose a `MetadataProviderApi` from your `ProviderPlugin`:
 
 ```kotlin
-class TestProviderApi(
-    client: OkHttpClient,
-    provider: Provider
-) : ProviderApi(client, provider) {
-    override suspend fun getFilmDetails(film: Film): FilmDetails {
-        // TODO: Implement metadata fetch
+class TestProviderPlugin : ProviderPlugin() {
+    private val client by lazy { OkHttpClient() }
+
+    private val metadataApi by lazy {
+        TestMetadataApi(
+            client = client,
+            tmdbApiKey = settings.getString("tmdb_api_key", null) ?: "",
+        )
     }
+
+    override fun getMetadataApi(context: Context): MetadataProviderApi = metadataApi
 }
 ```
 
-### Film
+`MetadataProviderApi` defines a single method:
 
-The `Film` class represents the app's media items globally. It's also the parameter for `getFilmDetails`.
+```kotlin
+interface MetadataProviderApi {
+    suspend fun getMetadata(film: Film): FilmMetadata
+}
+```
 
-Notable `Film` subclasses:
-| Subclass          | Description                                           |
-|-------------------|-------------------------------------------------------|
-| `FilmDetails`     | An abstract class to represent detailed metadata.     |
-| `FilmSearchItem`  | A class related to a search item.                     |
+The `film` parameter is usually a lightweight item (often a `FilmSearchItem`). Your job is to fetch a richer `FilmMetadata` object (`Movie` or `TvShow`).
 
-For more information about the Film class, check out its [API reference](https://flixclusiveorg.github.io/core-stubs/model-film/com.flixclusive.model.film/-film/index.html).
+<Note>
+    `FilmDetails` still exists, but it’s deprecated in favor of `FilmMetadata`.
+</Note>
 
-### FilmDetails
+## Example using TMDB Details API
 
-`FilmDetails` represents comprehensive film information with two main subclasses:
-
-<Tabs items={["Movie class", "TvShow class"]}>
-    <Tabs.Tab>
-        This holds the movie-specific metadata.
-        
-        For more information about the Movie class, check out its [API reference](https://flixclusiveorg.github.io/core-stubs/model-film/com.flixclusive.model.film/-movie/index.html).
-        ```kotlin
-        override suspend fun getFilmDetails(film: Film): FilmDetails {
-            // Fetch data from API and parse...
-
-            return Movie(
-                id = "some_id_1",
-                title = "A Sample Movie",
-                posterImage = "https://image.example.com/1.jpg",
-                homePage = "https://test-provider.com/a-sample-movie",
-                // Additional fields...
-            )
-        }
-        ```
-    </Tabs.Tab>
-    <Tabs.Tab>
-        This contains additional properties, like seasons and episodes.
-
-        For more information about the TvShow class, check out the following API references:
-        - [TvShow reference](https://flixclusiveorg.github.io/core-stubs/model-film/com.flixclusive.model.film/-tv-show/index.html)
-        - [Season reference](https://flixclusiveorg.github.io/core-stubs/model-film/com.flixclusive.model.film.common.tv/-season/index.html)
-        - [Episode reference](https://flixclusiveorg.github.io/core-stubs/model-film/com.flixclusive.model.film.common.tv/-episode/index.html)
-
-        ```kotlin
-        override suspend fun getFilmDetails(film: Film): FilmDetails {
-            // Fetch data from API and parse...
-
-            return TvShow(
-                id = "some_id_2",
-                title = "A Sample Show",
-                posterImage = "https://image.example.com/2.jpg",
-                homePage = "https://test-provider.com/a-sample-show",
-                totalEpisodes = 13,
-                totalSeasons = 1,
-                seasons = listOf(
-                    // Season instances...
-                )
-                // Additional fields...
-            )
-        }
-        ```
-    </Tabs.Tab>
-</Tabs>
-
-For more information about the classes used, check out the following references:
-- [Film](https://flixclusiveorg.github.io/core-stubs/model-film/com.flixclusive.model.film/-film/index.html)
-- [FilmDetails](https://flixclusiveorg.github.io/core-stubs/model-film/com.flixclusive.model.film/-film-details/index.html)
-- [FilmSearchItem](https://flixclusiveorg.github.io/core-stubs/model-film/com.flixclusive.model.film/-film-search-item/index.html)
-- [Movie](https://flixclusiveorg.github.io/core-stubs/model-film/com.flixclusive.model.film/-movie/index.html)
-- [TvShow](https://flixclusiveorg.github.io/core-stubs/model-film/com.flixclusive.model.film/-tv-show/index.html)
-- [Season](https://flixclusiveorg.github.io/core-stubs/model-film/com.flixclusive.model.film.common.tv/-season/index.html)
-- [Episode](https://flixclusiveorg.github.io/core-stubs/model-film/com.flixclusive.model.film.common.tv/-episode/index.html)
-
-## Example using TMDB API
-
-In this section, TMDB API will be referenced as an example to complete the guide.
+In this section, TMDB’s `/movie/{id}` and `/tv/{id}` endpoints are used as an example.
 
 <Steps>
     <Steps.Step>
         ### Define DTO classes
 
-        Create a class called `TMDBMovieDTO` and `TMDBTvShowDTO`.
-
-        Both classes should have a method to map itself to a `FilmDetails` subclass instance.
-
-        
-        <CodeGroup>
-            <CodeGroup.Code title="TMDBMovieDTO.kt">
-                ```kotlin
-                // Referenced directly from Flixclusive code
-
-                data class TMDBMovieDTO(
-                    val tmdbId: Int,
-                    val title: String,
-                    val poster_path: String? = null,
-                    val homepage: String? = null,
-                    // ... other needed info
-                ) {
-                    fun toMovie(): Movie {
-                        return Movie(
-                            id = null,
-                            title = title,
-                            posterImage = poster_path,
-                            homePage = homepage,
-                            tmdbId = tmdbId,
-                            providerName = "TMDB"
-                            // ...
-                        )
-                    }
-                }
-                ```
-            </CodeGroup.Code>
-            <CodeGroup.Code title="TMDBTvShowDTO.kt">
-                ```kotlin
-                // Referenced directly from Flixclusive code
-
-                data class TMDBTvShowDTO(
-                    val tmdbId: Int,
-                    val title: String,
-                    val poster_path: String? = null,
-                    val homepage: String? = null,
-                    val number_of_episodes: Int,
-                    val number_of_seasons: Int,
-                    val seasons: List<Season>,
-                    // ... other needed info
-                ) {
-                    fun toTvShow(): TvShow {
-                        return TvShow(
-                            id = null,
-                            title = title,
-                            posterImage = poster_path,
-                            homePage = homepage,
-                            totalEpisodes = number_of_episodes,
-                            totalSeasons = number_of_seasons,
-                            seasons = seasons,
-                            tmdbId = tmdbId,
-                            providerName = "TMDB"
-                            // ...
-                        )
-                    }
-                }
-
-                ```
-            </CodeGroup.Code>
-        </CodeGroup>
-    </Steps.Step>
-    <Steps.Step>
-        ### Override the getFilmDetails method
-
-        In your `ProviderApi` class, override the `getFilmDetails` function.
-
-        <Tip>
-            In Android Studio, `Ctrl + O` is the shortcut key for overriding methods and properties.
-        </Tip>
+        Use Kotlinx Serialization DTOs and map them to Core Stubs models.
 
         ```kotlin
-        class TestProviderApi(
-            client: OkHttpClient,
-            provider: Provider
-        ) : ProviderApi(client, provider) {
-            override suspend fun getFilmDetails(film: Film): FilmDetails {
-                // TODO: Implement metadata fetch
+        @Serializable
+        data class TmdbMovieDto(
+            val id: Int,
+            val title: String,
+            @SerialName("poster_path") val posterPath: String? = null,
+            @SerialName("backdrop_path") val backdropPath: String? = null,
+            val homepage: String? = null,
+            val overview: String? = null,
+            val adult: Boolean = false,
+            @SerialName("original_language") val originalLanguage: String? = null,
+            @SerialName("release_date") val releaseDate: String? = null,
+            @SerialName("vote_average") val voteAverage: Double? = null,
+            val tagline: String? = null,
+        ) {
+            fun toMovie(providerId: String): Movie {
+                val poster = posterPath?.let { "https://image.tmdb.org/t/p/w500$it" }
+                val backdrop = backdropPath?.let { "https://image.tmdb.org/t/p/w780$it" }
+
+                return Movie(
+                    id = id.toString(),
+                    title = title,
+                    posterImage = poster,
+                    homePage = homepage,
+                    backdropImage = backdrop,
+                    externalIds = mapOf(FilmIdSource.TMDB to id.toString()),
+                    language = originalLanguage,
+                    releaseDate = parseDate(releaseDate),
+                    rating = voteAverage,
+                    providerId = providerId,
+                    adult = adult,
+                    overview = overview,
+                    tagLine = tagline,
+                )
+            }
+        }
+
+        @Serializable
+        data class TmdbTvShowDto(
+            val id: Int,
+            @SerialName("name") val title: String,
+            @SerialName("poster_path") val posterPath: String? = null,
+            @SerialName("backdrop_path") val backdropPath: String? = null,
+            val homepage: String? = null,
+            val overview: String? = null,
+            val adult: Boolean = false,
+            @SerialName("original_language") val originalLanguage: String? = null,
+            @SerialName("first_air_date") val firstAirDate: String? = null,
+            @SerialName("vote_average") val voteAverage: Double? = null,
+            val tagline: String? = null,
+            @SerialName("number_of_episodes") val numberOfEpisodes: Int = 0,
+            @SerialName("number_of_seasons") val numberOfSeasons: Int = 0,
+        ) {
+            fun toTvShow(providerId: String): TvShow {
+                val poster = posterPath?.let { "https://image.tmdb.org/t/p/w500$it" }
+                val backdrop = backdropPath?.let { "https://image.tmdb.org/t/p/w780$it" }
+
+                return TvShow(
+                    id = id.toString(),
+                    title = title,
+                    posterImage = poster,
+                    homePage = homepage,
+                    backdropImage = backdrop,
+                    externalIds = mapOf(FilmIdSource.TMDB to id.toString()),
+                    language = originalLanguage,
+                    releaseDate = parseDate(firstAirDate),
+                    rating = voteAverage,
+                    providerId = providerId,
+                    adult = adult,
+                    overview = overview,
+                    tagLine = tagline,
+                    totalEpisodes = numberOfEpisodes,
+                    totalSeasons = numberOfSeasons,
+                )
             }
         }
         ```
     </Steps.Step>
     <Steps.Step>
-        ### Choose the TMDB API endpoint
+        ### Implement `getMetadata(...)`
 
-        Use the `filmType` property of the film parameter to choose the correct TMDB API endpoint:
-        ```kotlin
-        val endpoint = when (film.filmType) {
-            FilmType.MOVIE -> "https://api.themoviedb.org/3/movie"
-            FilmType.TV_SHOW -> "https://api.themoviedb.org/3/tv"
-        }
-        ```
-    </Steps.Step>
-    <Steps.Step>
-        ### Build and execute the request
-
-        Construct the full request URL using a `buildTmdbRequestUrl` function and execute the API request:
-        ```kotlin
-        val response = client
-            .request(url = buildTmdbRequestUrl(endpoint, title, page))
-            .execute()
-        ```
-        <Tip>
-            The extension function `client.request(...)` make development easier and faster. Check out [convenience methods for OkHttp](https://flixclusiveorg.github.io/core-stubs/core-util/com.flixclusive.core.util.network.okhttp/index.html).
-        </Tip>
-    </Steps.Step>
-    <Steps.Step>
-        ### Return the final mapped response
-
-        Return a `FilmDetails` object based on the requested media type:
+        Choose the correct TMDB endpoint based on `film.filmType`, request, parse, then map.
 
         ```kotlin
-        val errorMessage = "Couldn't parse response data!"
-        val result: FilmDetails = when (film.filmType) {
-            FilmType.MOVIE -> {
-                response
-                    .fromJson<TMDBMovieDTO>(errorMessage = errorMessage)
-                    .toMovie()
+        private fun buildTmdbDetailsUrl(
+            base: String,
+            id: String,
+            apiKey: String,
+        ): String = "$base/$id?api_key=$apiKey"
+
+        override suspend fun getMetadata(film: Film): FilmMetadata {
+            val providerId = film.providerId
+
+            val tmdbId = film.externalIds[FilmIdSource.TMDB] ?: film.id
+
+            val endpoint = when (film.filmType) {
+                FilmType.MOVIE -> "https://api.themoviedb.org/3/movie"
+                FilmType.TV_SHOW -> "https://api.themoviedb.org/3/tv"
             }
-            FilmType.TV_SHOW -> {
-                response
-                    .fromJson<TMDBTvShowDTO>(errorMessage = errorMessage)
-                    .toTvShow()
+
+            val response = client
+                .request(url = buildTmdbDetailsUrl(endpoint, tmdbId, tmdbApiKey))
+                .execute()
+
+            return when (film.filmType) {
+                FilmType.MOVIE -> response.fromJson<TmdbMovieDto>().toMovie(providerId)
+                FilmType.TV_SHOW -> response.fromJson<TmdbTvShowDto>().toTvShow(providerId)
             }
         }
-
-        return result
         ```
     </Steps.Step>
 </Steps>
@@ -237,30 +161,33 @@ In this section, TMDB API will be referenced as an example to complete the guide
 ### Final output
 
 ```kotlin
-override suspend fun getFilmDetails(film: Film): FilmDetails {
-    val endpoint = when (film.filmType) {
-        FilmType.MOVIE -> "https://api.themoviedb.org/3/movie"
-        FilmType.TV_SHOW -> "https://api.themoviedb.org/3/tv"
-    }
+class TestMetadataApi(
+    private val client: OkHttpClient,
+    private val tmdbApiKey: String,
+) : MetadataProviderApi {
+    private fun buildTmdbDetailsUrl(
+        base: String,
+        id: String,
+        apiKey: String,
+    ): String = "$base/$id?api_key=$apiKey"
 
-    val response = client
-        .request(url = buildTmdbRequestUrl(endpoint, title, page))
-        .execute()
+    override suspend fun getMetadata(film: Film): FilmMetadata {
+        val providerId = film.providerId
+        val tmdbId = film.externalIds[FilmIdSource.TMDB] ?: film.id
 
-    val errorMessage = "Couldn't parse response data!"
-    val result: FilmDetails = when (film.filmType) {
-        FilmType.MOVIE -> {
-            response
-                .fromJson<TMDBMovieDTO>(errorMessage = errorMessage)
-                .toMovie()
+        val endpoint = when (film.filmType) {
+            FilmType.MOVIE -> "https://api.themoviedb.org/3/movie"
+            FilmType.TV_SHOW -> "https://api.themoviedb.org/3/tv"
         }
-        FilmType.TV_SHOW -> {
-            response
-                .fromJson<TMDBTvShowDTO>(errorMessage = errorMessage)
-                .toTvShow()
+
+        val response = client
+            .request(url = buildTmdbDetailsUrl(endpoint, tmdbId, tmdbApiKey))
+            .execute()
+
+        return when (film.filmType) {
+            FilmType.MOVIE -> response.fromJson<TmdbMovieDto>().toMovie(providerId)
+            FilmType.TV_SHOW -> response.fromJson<TmdbTvShowDto>().toTvShow(providerId)
         }
     }
-    
-    return result
 }
 ```

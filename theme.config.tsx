@@ -86,6 +86,8 @@ export default defineTheme({
                     link('Searching media', '/impl/searching_media'),
                     link('Loading catalogs', '/impl/loading_catalogs'),
                     link('Fetching media links', '/impl/fetching_links'),
+                    link('Cross-match', '/impl/cross_match'),
+                    link('Tracker', '/impl/tracker'),
                 ]),
                 group('Best practices', [
                     link('Coding style', '/best_practices/coding_style'),

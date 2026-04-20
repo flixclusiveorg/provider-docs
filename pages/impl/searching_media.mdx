@@ -1,285 +1,267 @@
 # Searching media
 
-This section guides you through implementing the `search` method for your provider, using the TMDB API as an example. Before proceeding, make sure you understand the [Search Filters](#search-filters) section, as it explains how to set up filters that can be applied to searches.
+This guide walks you through implementing in-app search for your provider using the capability-first SDK.
 
 ## Overview
 
-In the `ProviderApi` class, the `search` method is designed to retrieve media items based on a range of criteria. This method is intended to be overridden, allowing each provider to define its unique search behavior.
+To support search, expose a `SearchProviderApi` from your `ProviderPlugin`:
 
 ```kotlin
-class TestProviderApi(
-    client: OkHttpClient,
-    provider: Provider
-) : ProviderApi(client, provider) {
-    override suspend fun search(
-        title: String,
-        page: Int,
-        id: String?,
-        imdbId: String?,
-        tmdbId: Int?,
-        filters: FilterList,
-    ): SearchResponseData<FilmSearchItem> {
-        // Implement search functionality here
+class TestProviderPlugin : ProviderPlugin() {
+    private val client by lazy { OkHttpClient() }
+
+    private val searchApi by lazy {
+        TestSearchApi(
+            client = client,
+            providerId = id,
+            tmdbApiKey = settings.getString("tmdb_api_key", null) ?: "",
+        )
     }
+
+    override fun getSearchApi(context: Context): SearchProviderApi = searchApi
 }
 ```
 
-The `search` method above accepts the query parameters: `title`, `id`, `imdbId`, and `tmdbId`. The ID parameters are useful for specific queries when you are confident that the media you are searching for can be identified using its ID. In contrast, the `title` parameter is intended for cases where the search is less certain.
+Then implement `SearchProviderApi.search(...)`, which returns a `PaginatedResponse<FilmSearchItem>`.
 
-### SearchResponseData
+### PaginatedResponse
 
-The `search` method returns a `SearchResponseData` object, which contains:
+The host uses `PaginatedResponse<T>` to paginate results.
 
-| Property             | Description                                                        |
-|----------------------|--------------------------------------------------------------------|
-| `page`               | Unique identifier for the film.                                    |
-| `results`            | A list of FilmSearchItem objects that match the search criteria.   |
-| `hasNextPage`        | Name of the provider where this film is listed.                    |
-| `totalPages`         | URL of the film’s homepage.                                        |
+| Field | Meaning |
+|---|---|
+| `page` | The current page number (1-based). |
+| `results` | Items for the current page. |
+| `hasNextPage` | Whether another page exists. |
+| `totalPages` | Total pages (set to `0` if unknown). |
 
-For more information, check the API references for [FilmSearchItem](https://flixclusiveorg.github.io/core-stubs/model-film/com.flixclusive.model.film/-film-search-item/index.html) and [SearchResponseData](https://flixclusiveorg.github.io/core-stubs/model-film/com.flixclusive.model.film/-search-response-data/index.html).
+## Example using TMDB Search API
 
-
-## Example using TMDB API
-
-In this section, [TMDB's search API](https://developer.themoviedb.org/reference/search-multi) will be referenced as an example to complete the guide.
+In this section, TMDB’s search endpoints are used as an example.
 
 <Steps>
     <Steps.Step>
-        ### Setup TMDB filters
+        ### Define filters (optional)
 
-        Create a class called `TmdbFilters` that's a subclass of `FilterGroup`.
-
-        This class contains the filter called **"Media type"** which is a selection type filter. Hence, you also have to create a `getMediaTypeFilter()` to obtain the current selected media type.
+        Filters let users control what they’re searching for. Here’s a simple “Media type” filter group:
 
         ```kotlin
-        import com.flixclusive.core.locale.UiText
-        import com.flixclusive.provider.filter.Filter
-        import com.flixclusive.provider.filter.FilterGroup
-        import com.flixclusive.provider.filter.FilterList
+        private const val FILTER_ALL = 0
+        private const val FILTER_MOVIE = 1
+        private const val FILTER_TV_SHOW = 2
 
-        private const val TMDB_FILTER_LABEL = "Media type"
-        internal const val FILTER_ALL = 0
-        internal const val FILTER_TV_SHOW = 1
-        internal const val FILTER_MOVIE = 2
-
-        class TmdbFilters(
-            options: List<String>
+        class TmdbMediaTypeFilters(
+            name: String = "Media type",
         ) : FilterGroup(
-            name = TMDB_FILTER_LABEL,
+            name = name,
             Filter.Select(
-                name = TMDB_FILTER_LABEL,
-                options = options,
-                state = FILTER_ALL
-            ),
+                name = "",
+                options = listOf("All", "Movies", "TV Shows"),
+                state = FILTER_ALL,
+            )
         ) {
-            companion object {
-                // For instant instantiation
-                fun getTmdbFilters(): FilterList
-                    = FilterList(
-                        TmdbFilters(
-                            options = listOf("All", "TV Show", "Movie")
-                        ),
-                    )
-            }
+            private val select: Filter.Select<String>
+                get() = first() as Filter.Select<String>
 
-            fun getMediaTypeFilter(): Int
-                = first().state as Int
+            val selectedIndex: Int
+                get() = select.state
         }
         ```
 
-        Then, pass `getTmdbFilters()` to the `filters` property of the ProviderApi.
+        Then register it in your API implementation:
 
         ```kotlin
-        class TestProviderApi(
-            client: OkHttpClient,
-            provider: Provider
-        ) : ProviderApi(client, provider) {
-            override val filters: FilterList 
-                get() = getTmdbFilters() // <-
-        }
+        override val filters: FilterList = FilterList(
+            TmdbMediaTypeFilters(),
+        )
         ```
-
-        For more information about filters, check "[Search filters](/impl/impl_filters)"
     </Steps.Step>
     <Steps.Step>
         ### Define DTO classes
 
-        Both `TMDBSearchDataDTO` and `TMDBSearchItemDTO` are DTO classes for structuring and handling TMDB API response data.
-
-        <CodeGroup>
-            <CodeGroup.Code title="TMDBSearchDataDTO.kt">
-                ```kotlin
-                data class TMDBSearchDataDTO(
-                    val page: Int,
-                    val results: List<TMDBSearchItemDTO>,
-                    val total_pages: Int
-                )
-                ```
-            </CodeGroup.Code>
-            <CodeGroup.Code title="TMDBSearchItemDTO.kt">
-                ```kotlin
-                // Referenced directly from Flixclusive code
-
-                import com.flixclusive.model.film.util.FilmType
-                import com.flixclusive.model.film.FilmSearchItem
-                import com.google.gson.annotations.SerializedName
-
-                data class TMDBSearchItemDTO(
-                    @SerializedName("name", alternate = ["title"]) val title: String,
-                    @SerializedName("homepage") val homePage: String? = null,
-                    @SerializedName("poster_path") val posterImage: String? = null,
-                    @SerializedName("media_type") val mediaType: String? = null,
-                    @SerializedName("id") val tmdbId: Int,
-                    // ... other needed info
-                ) {
-                    /**
-                     * An instance mapper method
-                     */
-                    fun toFilmSearchItem(): FilmSearchItem {
-                        val genreName = when (mediaType) {
-                            FilmType.MOVIE.type -> "Movie"
-                            FilmType.TV_SHOW.type -> "TV Show"
-                        }
-
-                        return FilmSearchItem(
-                            id = null,
-                            providerName = "TMDB",
-                            filmType = filmType,
-                            homePage = homePage,
-                            title = title,
-                            posterImage = posterImage,
-                            tmdbId = tmdbId,
-                            // ...
-                        )
-                    }
-                }
-                ```
-            </CodeGroup.Code>
-        </CodeGroup>
-    </Steps.Step>
-    <Steps.Step>
-        ### Override the search method
-
-        In your `ProviderApi` class, override the `search` function.
-
-        <Tip>
-            In Android Studio, `Ctrl + O` is the shortcut key for overriding methods and properties.
-        </Tip>
+        Core Stubs uses Kotlinx Serialization for JSON parsing. Define DTOs using `@Serializable` + `@SerialName`.
 
         ```kotlin
-        class TestProviderApi(
-            client: OkHttpClient,
-            provider: Provider
-        ) : ProviderApi(client, provider) {
-            override suspend fun search(
-                title: String,
-                page: Int,
-                id: String?,
-                imdbId: String?,
-                tmdbId: Int?,
-                filters: FilterList,
-            ): SearchResponseData<FilmSearchItem> {
-                // TODO("Implementation")
-            }
-        }
-        ```
-        
-        Here, you can retrieve the media type from the filters using:
-        ```kotlin
-        val mediaType = (filters.first() as TmdbFilters).getMediaTypeFilter()
-        ```
-    </Steps.Step>
-    <Steps.Step>
-        ### Choose the TMDB API endpoint
-
-        Use the `mediaType` filter value to choose the correct TMDB API endpoint:
-        ```kotlin
-        val endpoint = when (mediaType) {
-            FILTER_ALL -> "https://api.themoviedb.org/3/search/multi"
-            FILTER_TV_SHOW -> "https://api.themoviedb.org/3/search/tv"
-            FILTER_MOVIE -> "https://api.themoviedb.org/3/search/movie"
-        }
-        ```
-    </Steps.Step>
-    <Steps.Step>
-        ### Build and execute the request
-
-        Construct the full request URL using a `buildTmdbRequestUrl` function and execute the API request:
-        ```kotlin
-        val dtoResponse = client
-            .request(url = buildTmdbRequestUrl(endpoint, title, page))
-            .execute()
-            .fromJson<TMDBSearchDataDTO>(
-                errorMessage = "Couldn't parse response data!"
-            )
-        ```
-        <Tip>
-            The two utility functions `client.request(...)` and `Response.fromJson<T>(...)` make development easier and faster. Check out convenience methods for [OkHttp](https://flixclusiveorg.github.io/core-stubs/core-util/com.flixclusive.core.util.network.okhttp/index.html) and [JSON](https://flixclusiveorg.github.io/core-stubs/core-util/com.flixclusive.core.util.network.json/index.html).
-        </Tip>
-
-    </Steps.Step>
-    <Steps.Step>
-        ### Map and process the results
-
-        Convert the `dtoResponse.results` from DTO objects to `FilmSearchItem` objects with the `toFilmSearchItem()` method:
-        ```kotlin
-        val mappedResults = dtoResponse.results
-            .map { searchItemDto ->
-                searchItemDto.toFilmSearchItem()
-            }
-        ```
-    </Steps.Step>
-    <Steps.Step>
-        ### Return the final search response
-
-        Return a `SearchResponseData` object with pagination details and the mapped results:
-        ```kotlin
-        return SearchResponseData(
-            page = dtoResponse.page,
-            results = mappedResults,
-            hasNextPage = dtoResponse.page < dtoResponse.total_pages,
-            totalPages = dtoResponse.total_pages
+        @Serializable
+        data class TmdbSearchResponseDto(
+            val page: Int,
+            @SerialName("total_pages") val totalPages: Int = 0,
+            val results: List<TmdbSearchItemDto> = emptyList(),
         )
+
+        @Serializable
+        data class TmdbSearchItemDto(
+            val id: Int,
+            @SerialName("media_type") val mediaType: String? = null,
+            val title: String? = null,
+            val name: String? = null,
+            @SerialName("poster_path") val posterPath: String? = null,
+            @SerialName("backdrop_path") val backdropPath: String? = null,
+            val overview: String? = null,
+            @SerialName("vote_average") val voteAverage: Double? = null,
+            @SerialName("original_language") val originalLanguage: String? = null,
+            val adult: Boolean? = null,
+            @SerialName("release_date") val releaseDate: String? = null,
+            @SerialName("first_air_date") val firstAirDate: String? = null,
+        )
+
+        private fun TmdbSearchItemDto.toFilmSearchItemOrNull(
+            providerId: String,
+            forcedType: FilmType? = null,
+        ): FilmSearchItem? {
+            val resolvedType = forcedType ?: when (mediaType) {
+                "movie" -> FilmType.MOVIE
+                "tv" -> FilmType.TV_SHOW
+                else -> null
+            }
+
+            if (resolvedType == null) {
+                return null
+            }
+
+            val resolvedTitle = title ?: name.orEmpty()
+            val resolvedReleaseDate = releaseDate ?: firstAirDate
+
+            val poster = posterPath?.let { "https://image.tmdb.org/t/p/w500$it" }
+            val backdrop = backdropPath?.let { "https://image.tmdb.org/t/p/w780$it" }
+
+            return FilmSearchItem(
+                id = id.toString(),
+                providerId = providerId,
+                filmType = resolvedType,
+                homePage = "https://www.themoviedb.org/${resolvedType.type}/$id",
+                title = resolvedTitle,
+                posterImage = poster,
+                adult = adult == true,
+                backdropImage = backdrop,
+                externalIds = mapOf(FilmIdSource.TMDB to id.toString()),
+                releaseDate = parseDate(resolvedReleaseDate),
+                rating = voteAverage,
+                language = originalLanguage,
+                overview = overview,
+            )
+        }
         ```
+    </Steps.Step>
+    <Steps.Step>
+        ### Implement `search(...)`
+
+        Pick an endpoint based on the selected filter, then parse JSON with `Response.fromJson<T>()`.
+
+        ```kotlin
+        private fun buildTmdbRequestUrl(
+            endpoint: String,
+            query: String,
+            page: Int,
+            apiKey: String,
+        ): String {
+            val encodedQuery = URLEncoder.encode(query, Charsets.UTF_8.name())
+            return "$endpoint?api_key=$apiKey&query=$encodedQuery&page=$page"
+        }
+
+        override suspend fun search(
+            title: String,
+            page: Int,
+            filters: FilterList,
+        ): PaginatedResponse<FilmSearchItem> {
+            val mediaTypeFilter = filters
+                .filterIsInstance<TmdbMediaTypeFilters>()
+                .firstOrNull()
+            val mediaTypeIndex = mediaTypeFilter?.selectedIndex ?: FILTER_ALL
+
+            val endpoint = when (mediaTypeIndex) {
+                FILTER_ALL -> "https://api.themoviedb.org/3/search/multi"
+                FILTER_TV_SHOW -> "https://api.themoviedb.org/3/search/tv"
+                FILTER_MOVIE -> "https://api.themoviedb.org/3/search/movie"
+                else -> "https://api.themoviedb.org/3/search/multi"
+            }
+
+            val dto = client
+                .request(url = buildTmdbRequestUrl(endpoint, title, page, tmdbApiKey))
+                .execute()
+                .fromJson<TmdbSearchResponseDto>(
+                    errorMessage = "Couldn't parse response data!",
+                )
+
+            val forcedType = when (mediaTypeIndex) {
+                FILTER_MOVIE -> FilmType.MOVIE
+                FILTER_TV_SHOW -> FilmType.TV_SHOW
+                else -> null
+            }
+
+            val results = dto.results
+                .asSequence()
+                .mapNotNull { it.toFilmSearchItemOrNull(providerId = providerId, forcedType = forcedType) }
+                .toList()
+
+            return PaginatedResponse(
+                page = dto.page,
+                results = results,
+                hasNextPage = dto.page < dto.totalPages,
+                totalPages = dto.totalPages,
+            )
+        }
+        ```
+
+        <Tip>
+            `fromJson(...)` and `OkHttpClient.request(...)` are provided by Core Stubs utilities:
+            - [JSON helpers](https://flixclusiveorg.github.io/core-stubs/core-util/com.flixclusive.core.util.network.json/)
+            - [OkHttp helpers](https://flixclusiveorg.github.io/core-stubs/core-util/com.flixclusive.core.util.network.okhttp/)
+        </Tip>
     </Steps.Step>
 </Steps>
 
 ### Final output
 
 ```kotlin
-override suspend fun search(
-    title: String,
-    page: Int,
-    id: String?,
-    imdbId: String?,
-    tmdbId: Int?,
-    filters: FilterList,
-): SearchResponseData {
-    val mediaType = (filters.first() as TmdbFilters).getMediaTypeFilter()
-    val endpoint = when (mediaType) {
-        FILTER_ALL -> "https://api.themoviedb.org/3/search/multi"
-        FILTER_TV_SHOW -> "https://api.themoviedb.org/3/search/tv"
-        FILTER_MOVIE -> "https://api.themoviedb.org/3/search/movie"
-    }
+class TestSearchApi(
+    private val client: OkHttpClient,
+    private val providerId: String,
+    private val tmdbApiKey: String,
+) : SearchProviderApi {
+    override val filters: FilterList = FilterList(
+        TmdbMediaTypeFilters(),
+    )
 
-    val dtoResponse = client
-        .request(url = buildTmdbRequestUrl(endpoint, title, page))
-        .execute()
-        .fromJson<TMDBSearchDataDTO>(
-            errorMessage = "Couldn't parse response data!"
-        )
+    override suspend fun search(
+        title: String,
+        page: Int,
+        filters: FilterList,
+    ): PaginatedResponse<FilmSearchItem> {
+        val mediaTypeFilter = filters
+            .filterIsInstance<TmdbMediaTypeFilters>()
+            .firstOrNull()
+        val mediaTypeIndex = mediaTypeFilter?.selectedIndex ?: FILTER_ALL
 
-    val mappedResults = dtoResponse.results
-        .map { searchItemDto ->
-            searchItemDto.toFilmSearchItem()
+        val endpoint = when (mediaTypeIndex) {
+            FILTER_ALL -> "https://api.themoviedb.org/3/search/multi"
+            FILTER_TV_SHOW -> "https://api.themoviedb.org/3/search/tv"
+            FILTER_MOVIE -> "https://api.themoviedb.org/3/search/movie"
+            else -> "https://api.themoviedb.org/3/search/multi"
         }
 
-    return SearchResponseData(
-        page = dtoResponse.page,
-        results = mappedResults,
-        hasNextPage = dtoResponse.page < dtoResponse.total_pages,
-        totalPages = dtoResponse.total_pages
-    )
+        val dto = client
+            .request(url = buildTmdbRequestUrl(endpoint, title, page, tmdbApiKey))
+            .execute()
+            .fromJson<TmdbSearchResponseDto>()
+
+        val forcedType = when (mediaTypeIndex) {
+            FILTER_MOVIE -> FilmType.MOVIE
+            FILTER_TV_SHOW -> FilmType.TV_SHOW
+            else -> null
+        }
+
+        val results = dto.results
+            .asSequence()
+            .mapNotNull { it.toFilmSearchItemOrNull(providerId = providerId, forcedType = forcedType) }
+            .toList()
+
+        return PaginatedResponse(
+            page = dto.page,
+            results = results,
+            hasNextPage = dto.page < dto.totalPages,
+            totalPages = dto.totalPages,
+        )
+    }
 }
 ```

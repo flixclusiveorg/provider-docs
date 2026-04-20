@@ -1,132 +1,121 @@
 # Creating a Settings UI
 
-Providers can have their own settings interface to allow users to configure provider-specific preferences. This guide shows you how to implement a custom settings screen for your provider.
-
-## Prerequisites
-
-The app uses Compose as its main UI library. Add these dependencies to your provider's `build.gradle.kts`:
-```kotlin
-dependencies {
-    // ...
-
-    // No need to specify compose version explicitly
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.foundation:foundation")
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.runtime:runtime")
-    // ... add more compose dependencies based on your liking.
-}
-```
-
-<Warning>
-    There is no need to specify Compose versions or BOM version in your provider's dependencies (unless required). The core stubs library already manages these versions. Adding explicit versions might cause version conflicts and runtime exceptions.
-
-    For reference, the app currently uses (might be be outdated, check the links below instead):
-    - Compose BOM: `2024.09.02`
-    - Kotlin: `1.9.10`
-    - Kotlin Compose Compiler: `1.5.3`
-
-    For version compatibility information, see:
-    - [Compose to Kotlin compatibility map](https://developer.android.com/jetpack/androidx/releases/compose-kotlin)
-    - [Compose BOM to library version](https://developer.android.com/develop/ui/compose/bom/bom-mapping)
-    - [Flixclusive dependencies map](https://github.com/flixclusiveorg/Flixclusive/blob/master/gradle/libs.versions.toml)
-</Warning>
+Providers can expose a custom settings screen that the host app shows when the user opens your provider.
 
 ## Overview
-The Provider class includes a `SettingsScreen()` composable that you can override to create your own settings UI:
+
+In the capability-first SDK, settings UI lives on the plugin entry class:
 
 ```kotlin
-@FlixclusiveProvider
-class TestProvider : Provider() {
+class TestProviderPlugin : ProviderPlugin() {
     @Composable
     override fun SettingsScreen() {
         // Your settings UI here
     }
-
-    // ...
 }
 ```
 
-## Using ProviderSettings
+Use `settings: ProviderSettings` to persist provider configuration.
 
-The Provider class includes a `settings` property of type `ProviderSettings` that handles persistent storage of your provider's configuration. This system supports various data types and automatically saves values to disk.
+<Warning>
+    `manifest` and `settings` are assigned by the host at runtime.
+    Don’t access them in `init {}` blocks or property initializers unless you use `by lazy { ... }`.
+</Warning>
 
-### Basic Usage
+## Basic usage
+
+This example uses Material 3 components and stores values into `ProviderSettings`.
+
 ```kotlin
-@FlixclusiveProvider
-class TestProvider : Provider() {
-    @Composable
-    override fun SettingsScreen() {
-        // Read settings
-        var isHdEnabled by remember { 
-            mutableStateOf(settings.getBool("hd_enabled", false))
-        }
-        var apiKey by remember { 
-            mutableStateOf(settings.getString("api_key", ""))
-        }
-        
-        Column(
-            modifier = Modifier.padding(16.dp)
+private const val KEY_HD_ENABLED = "hd_enabled"
+private const val KEY_API_KEY = "api_key"
+
+@Composable
+override fun SettingsScreen() {
+    var isHdEnabled by remember {
+        mutableStateOf(settings.getBool(KEY_HD_ENABLED, false))
+    }
+
+    var apiKey by remember {
+        mutableStateOf(settings.getString(KEY_API_KEY, "") ?: "")
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            // Assuming you have a SwitchPreference composable
-            SwitchPreference(
-                title = "Enable HD Quality",
+            Text(
+                text = "Enable HD quality",
+                modifier = Modifier.weight(1f),
+            )
+
+            Switch(
                 checked = isHdEnabled,
                 onCheckedChange = { newValue ->
-                    // Write settings
                     isHdEnabled = newValue
-                    settings.setBool("hd_enabled", newValue)
-                }
-            )
-            
-            // Assuming you have a TextPreference composable
-            TextPreference(
-                title = "API Key",
-                value = apiKey ?: "",
-                onValueChange = { newValue ->
-                    apiKey = newValue
-                    settings.setString("api_key", newValue)
-                }
+                    settings.setBool(KEY_HD_ENABLED, newValue)
+                },
             )
         }
+
+        Spacer(Modifier.height(16.dp))
+
+        OutlinedTextField(
+            value = apiKey,
+            onValueChange = { newValue ->
+                apiKey = newValue
+                settings.setString(KEY_API_KEY, newValue)
+            },
+            label = { Text("API key") },
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 ```
 
-### Supported Data Types
-`ProviderSettings` supports multiple data types:
+## Supported data types
+
+`ProviderSettings` supports primitives and JSON-serializable objects.
+
 ```kotlin
-// Boolean values
+// Boolean
 settings.getBool("feature_enabled", false)
 settings.setBool("feature_enabled", true)
 
-// Numeric values
+// Numbers
 settings.getInt("max_quality", 1080)
 settings.setFloat("playback_speed", 1.5f)
 settings.setLong("timestamp", System.currentTimeMillis())
 
-// String values
+// Strings
 settings.getString("username", "default")
 settings.setString("server_url", "https://api.example.com")
 
-// Custom objects
+// Custom objects (must be Kotlinx-Serializable)
+@Serializable
 data class ServerConfig(val url: String, val port: Int)
-settings.setObject("server_config", ServerConfig("localhost", 8080))
-settings.getObject<ServerConfig>("server_config")
 
-// Unknown value
-settings.getUnknown("username", 1) // Int
-settings.getUnknown("message", "Hello World!") // String
-settings.setUnknown("message", "Hello World!") // String
+settings.setObject("server_config", ServerConfig("localhost", 8080))
+val config = settings.getObject<ServerConfig>("server_config")
+
+// Unknown type helpers
+settings.getUnknown("username", 1) // Int default
+settings.setUnknown("message", "Hello World!")
 ```
 
-### Additional Features
-- Check if a setting exists: `settings.exists("key")`
-- Remove a setting: `settings.remove("key")`
-- Toggle boolean values: `settings.toggleBool("feature_flag", false)`
-- Reset all settings: `settings.resetSettings()`
-- Get all setting keys: `settings.allKeys`
+### Additional helpers
 
-For more information, see the [API reference](https://flixclusiveorg.github.io/core-stubs/provider/com.flixclusive.provider.settings/-provider-settings/index.html).
+- `settings.exists("key")`
+- `settings.remove("key")`
+- `settings.toggleBool("feature_flag", false)`
+- `settings.resetSettings()`
+- `settings.allKeys`
 
+For more information, see the API reference:
 
+- [ProviderSettings API reference](https://flixclusiveorg.github.io/core-stubs/provider/com.flixclusive.provider.settings/-provider-settings/)

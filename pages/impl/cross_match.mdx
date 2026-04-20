@@ -1,0 +1,69 @@
+# Cross-match
+
+This guide covers the cross-match capability used to resolve media items across providers using stable external IDs.
+
+## Overview
+
+Expose `CrossMatchProviderApi` from your `ProviderPlugin` when your provider can resolve exact matches from trusted IDs.
+
+```kotlin
+class TestProviderPlugin : ProviderPlugin() {
+    private val crossMatchApi by lazy {
+        TestCrossMatchApi(providerId = id)
+    }
+
+    override fun getCrossMatchApi(context: Context): CrossMatchProviderApi = crossMatchApi
+}
+```
+
+## CrossMatchProviderApi
+
+`CrossMatchProviderApi` lets a provider describe which external IDs it can resolve and how it can map them back to a `FilmMetadata`.
+
+- `supportedIdSources` declares the exact source IDs you can resolve.
+- `getById(sourceIds)` performs deterministic matching from trusted IDs.
+- `getByFuzzy(title, sourceIds, filmType, year)` can be used as a fallback when exact IDs are missing.
+
+API reference:
+
+- [CrossMatchProviderApi](https://flixclusiveorg.github.io/core-stubs/provider/com.flixclusive.provider.capability/-cross-match-provider-api/)
+
+## Example
+
+```kotlin
+class TestCrossMatchApi(
+    private val providerId: String,
+) : CrossMatchProviderApi {
+    override val supportedIdSources: Set<FilmIdSource> = setOf(
+        FilmIdSource.TMDB,
+        FilmIdSource.IMDB,
+    )
+
+    override suspend fun getById(
+        sourceIds: Map<FilmIdSource, String>,
+    ): FilmMetadata? {
+        val tmdbId = sourceIds[FilmIdSource.TMDB]
+        val imdbId = sourceIds[FilmIdSource.IMDB]
+
+        return when {
+            tmdbId != null -> fetchByTmdbId(tmdbId)
+            imdbId != null -> fetchByImdbId(imdbId)
+            else -> null
+        }
+    }
+
+    override suspend fun getByFuzzy(
+        title: String,
+        sourceIds: Map<FilmIdSource, String>,
+        filmType: FilmType?,
+        year: Int?,
+    ): FilmMetadata? {
+        return null
+    }
+}
+```
+
+<Note>
+    Prefer exact matching from known IDs whenever possible.
+    Fuzzy matching should be a fallback, not the primary resolution path.
+</Note>

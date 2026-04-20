@@ -1,126 +1,118 @@
 # Search Filters
 
-Before diving into the search implementation, it's essential to understand how search filters work within the provider system.
+Before implementing search, it helps to understand how provider search filters work.
 
 ## Overview
 
-In the `ProviderApi` class, there's a `filters` property that you can override to define custom search filters. These filters allow users to refine their searches, providing a more tailored experience in the Flixclusive app.
+In the capability-first SDK, filters belong to `SearchProviderApi` via the `filters: FilterList` property. The host UI renders these filters and passes the selected state back into `search(...)`.
 
 ```kotlin
-class TestProviderApi(
-    client: OkHttpClient,
-    provider: Provider
-) : ProviderApi(client, provider) {
+class TestSearchApi : SearchProviderApi {
     override val filters: FilterList = FilterList(
         // ...
     )
+
+    override suspend fun search(
+        title: String,
+        page: Int,
+        filters: FilterList,
+    ): PaginatedResponse<FilmSearchItem> {
+        // Read selected filter state from `filters` and apply it to your request.
+        TODO("Not yet implemented")
+    }
 }
 ```
 
-To create your own search filters, you'll need to understand how the different filter types work. Check out the next three sections to learn about each filter type and how they can be used to enhance the search experience for your users.
+To create your own search filters, you’ll need to understand the different filter types.
 
 ## Filter
 
-The `Filter` is a sealed class that provides a flexible way to define and manage various types of filters within the Flixclusive app. This structure, originally inspired by the Tachiyomi project, allows for different filter types—each represented by a subclass with its own unique behavior and state.
+`Filter` is a sealed class representing a named filter with a mutable `state`. This structure was inspired by Tachiyomi.
 
-Below are examples showing how to instantiate each filter type:
+Examples:
 
 ```kotlin
 // Select filter for choosing a genre
 val genreFilter = Filter.Select(
     name = "Genre",
     options = listOf("Action", "Comedy", "Drama"),
-    state = 0 // Default to the first option (e.g., "Action")
+    state = 0, // Default: first option
 )
 
 // CheckBox filter for HD content
 val hdFilter = Filter.CheckBox(
     name = "HD Only",
-    state = true // Default to checked (only show HD content)
+    state = true,
 )
 
 // TriState filter for availability
 val availabilityFilter = Filter.TriState(
     name = "Availability",
-    state = Filter.TriState.STATE_UNSELECTED // Default to unselected
+    state = Filter.TriState.STATE_UNSELECTED,
 )
 
 // Sort filter for sorting by popularity or release date
 val sortFilter = Filter.Sort(
     name = "Sort By",
     options = listOf("Popularity", "Release Date"),
-    state = Filter.Sort.Selection(index = 0, ascending = true) // Default to ascending by popularity
+    state = Filter.Sort.Selection(index = 0, ascending = true),
 )
 ```
 
 ### Types
 
-The `Filter` class includes the following filter types:
-
-| Type              | Description                                                                                   | State                                | Use Case Example                              |
-|--------------------|-----------------------------------------------------------------------------------------------|--------------------------------------|-----------------------------------------------|
-| **Select**         | A filter with multiple selectable options.                                                    | Stores the index of the selected option. | Selecting a genre like "Action" or "Drama."   |
-| **CheckBox**       | A simple on/off toggle.                                                                       | `true` (checked) or `false` (unchecked) | Enabling or disabling "HD Only" content.      |
-| **TriState**       | A three-state filter with unselected, selected, and indeterminate options.                    | `0` (unselected), `1` (selected), `2` (indeterminate) | Filtering by "Availability."                |
-| **Sort**           | A filter for sorting options in ascending or descending order.                                | Uses `Selection` data class with index and order (`ascending` or `descending`). | Sorting by "Popularity" or "Release Date."    |
-
+| Type | Description | State | Example |
+|---|---|---|---|
+| **Select** | Multiple selectable options. | Selected index (`Int`). | Genre selection. |
+| **CheckBox** | On/off toggle. | `Boolean`. | “HD only”. |
+| **TriState** | Unselected/selected/indeterminate. | `0`, `1`, `2`. | Availability filter. |
+| **Sort** | Sorting option + direction. | `Selection(index, ascending)` or `null`. | Sort by popularity. |
 
 ## FilterGroup
 
-The `FilterGroup` class is an abstract class that organizes multiple filters into a single group. This helps in categorizing related filters, making it easier to manage and apply them together in the Flixclusive app.
-
-Below are examples of how to use `FilterGroup` to organize filters:
+`FilterGroup` groups multiple filters under a single heading in the UI.
 
 ```kotlin
-// Individual filters
-val genreFilter = Filter.Select("Genre", listOf("Action", "Comedy", "Drama"))
-val hdFilter = Filter.CheckBox("HD Only", state = true)
-val sortFilter = Filter.Sort("Sort By", listOf("Popularity", "Release Date"))
-
-// Grouping filters into a FilterGroup
 val contentFilterGroup = FilterGroup(
     name = "Content Filters",
-    genreFilter,
-    hdFilter,
-    sortFilter
+    Filter.Select("Genre", listOf("Action", "Comedy", "Drama")),
+    Filter.CheckBox("HD Only", state = true),
+    Filter.Sort("Sort By", listOf("Popularity", "Release Date")),
 )
 ```
 
-In this example, `contentFilterGroup` combines `genreFilter`, `hdFilter`, and `sortFilter` under a single group. This setup allows easier access and organization of related filters, making it more straightforward to apply filtering logic within the app.
-
 ## FilterList
 
-The `FilterList` class serves as a container for multiple `FilterGroup` instances, allowing you to organize and apply grouped filters to refine search results within the Flixclusive app. Each `FilterGroup` represents a set of related filters, providing a structured way to handle multiple filtering options.
+`FilterList` is a container of `FilterGroup`s. This is what you expose from `SearchProviderApi.filters`.
 
 ## Example output
 
-Here's how you might use `FilterList` to combine different filter groups in a provider's search functionality:
-
 ```kotlin
-class TestProviderApi(
-    client: OkHttpClient,
-    provider: Provider
-) : ProviderApi(client, provider) {
+class TestSearchApi : SearchProviderApi {
     override val filters: FilterList = FilterList(
         FilterGroup(
             name = "Content Filters",
             Filter.Select("Genre", listOf("Action", "Comedy", "Drama")),
             Filter.CheckBox("HD Only"),
-            Filter.Sort("Sort By", listOf("Popularity", "Release Date"))
+            Filter.Sort("Sort By", listOf("Popularity", "Release Date")),
         ),
         FilterGroup(
             name = "Availability",
             Filter.TriState("Available Now"),
-            Filter.CheckBox("Free Content")
-        )
+            Filter.CheckBox("Free Content"),
+        ),
     )
+
+    override suspend fun search(
+        title: String,
+        page: Int,
+        filters: FilterList,
+    ): PaginatedResponse<FilmSearchItem> {
+        TODO("Apply filters to your request")
+    }
 }
 ```
 
-In this example, `TestProviderApi` overrides the `filters` property with a `FilterList` containing two `FilterGroup`s:
-- **Content Filters**: Includes filters for genre, HD-only content, and sorting options.
-- **Availability**: Provides additional options to filter by availability status and free content.
-
 <Note>
-    You can check here in this [link](https://github.com/flixclusiveorg/Flixclusive/blob/67efc26bab980fe38158bc224e12b9b3c127ac02/data/tmdb/src/main/kotlin/com/flixclusive/data/tmdb/TmdbFilters.kt#L27) how the app implemented its TMDB filters.
+    You can inspect a real-world example of grouped filters in the Flixclusive app’s TMDB provider implementation.
 </Note>

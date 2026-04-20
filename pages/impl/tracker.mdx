@@ -1,0 +1,96 @@
+# Tracker
+
+This guide covers the tracker capability used for list management and scrobble-style playback reporting.
+
+## Overview
+
+Expose `TrackerProviderApi` from your `ProviderPlugin` when your provider integrates with a tracker service such as Trakt or Simkl.
+
+```kotlin
+class TestProviderPlugin : ProviderPlugin() {
+    private val trackerApi by lazy {
+        TestTrackerApi(providerId = id)
+    }
+
+    override fun getTrackerApi(context: Context): TrackerProviderApi = trackerApi
+}
+```
+
+## TrackerProviderApi
+
+`TrackerProviderApi` is feature-driven. Use `features` to declare the operations your implementation supports.
+
+Common responsibilities include:
+
+- returning the user’s lists
+- creating, updating, and deleting lists
+- adding and removing items
+- reporting scrobble progress when supported
+
+API reference:
+
+- [TrackerProviderApi](https://flixclusiveorg.github.io/core-stubs/provider/com.flixclusive.provider.capability/-tracker-provider-api/)
+
+## Auth
+
+Tracker auth belongs in `ProviderSettings` and `SettingsScreen()`.
+
+- Use `TrackerAuthRequiredException` when a call needs auth but the user is logged out.
+- Persist tokens and refresh state in settings.
+- Keep auth state small, explicit, and easy to invalidate.
+
+## Scrobble
+
+Use `ScrobbleAction.START` and `ScrobbleAction.STOP`.
+Do not add pause support unless the SDK contract changes.
+
+## Example skeleton
+
+```kotlin
+class TestTrackerApi(
+    private val providerId: String,
+) : TrackerProviderApi {
+    override val features: Set<TrackerFeature> = setOf(
+        TrackerFeature.LISTS_READ,
+        TrackerFeature.LISTS_CREATE,
+        TrackerFeature.LISTS_UPDATE,
+        TrackerFeature.LISTS_DELETE,
+        TrackerFeature.LIST_ITEMS_READ,
+        TrackerFeature.LIST_ITEMS_ADD,
+        TrackerFeature.LIST_ITEMS_REMOVE,
+        TrackerFeature.SCROBBLE_START,
+        TrackerFeature.SCROBBLE_STOP,
+    )
+
+    override suspend fun getLists(): List<TrackerList> = emptyList()
+
+    override suspend fun createList(name: String, description: String?): TrackerList {
+        TODO("Create list remotely")
+    }
+
+    override suspend fun updateList(list: TrackerList, name: String?, description: String?): TrackerList {
+        TODO("Update list remotely")
+    }
+
+    override suspend fun deleteList(list: TrackerList) {
+        TODO("Delete list remotely")
+    }
+
+    override suspend fun getListItems(list: TrackerList, page: Int): PaginatedResponse<FilmSearchItem> {
+        TODO("Load tracker list items")
+    }
+
+    override suspend fun addListItem(list: TrackerList, item: Film) {
+        TODO("Add item to list")
+    }
+
+    override suspend fun removeListItem(list: TrackerList, item: Film) {
+        TODO("Remove item from list")
+    }
+}
+```
+
+<Note>
+    If your provider only integrates with one tracker service but does not support all operations,
+    declare only the features you actually implement.
+</Note>

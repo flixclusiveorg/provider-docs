@@ -1,101 +1,88 @@
 # Testing a provider
 
-This guide covers testing tips for provider development, focusing on Android unit testing and debugging.
+This guide covers testing tips for provider development, focusing on unit testing and in-app testing.
 
-## Unit testing
-Test your provider's core functionality using Android's testing framework:
+## Unit testing (recommended)
+
+When possible, unit test your **capability API classes** directly (e.g., `SearchProviderApi` implementation classes).
+
+<Note>
+    `ProviderPlugin.manifest` and `ProviderPlugin.settings` are initialized by the host app at runtime.
+    Because those are `lateinit`, you generally should not instantiate `ProviderPlugin` in unit tests.
+    Prefer testing the capability API classes in isolation.
+</Note>
+
+Example: unit test a search implementation.
 
 ```kotlin
-class TestProviderTest {
-    private lateinit var provider: TestProvider
-    private lateinit var api: TestProviderApi
-
-    // val mockContext = ...
-    // val mockClient = ...
-
-    @Before
-    fun setup() {
-        provider = TestProvider()
-        api = provider.getApi(
-            context = mockContext,
-            client = mockClient
-        ) as TestProviderApi
-    }
+class TestProviderSearchProviderApiTest {
+    private val api = TestProviderSearchProviderApi(
+        providerId = "prov-test-provider",
+    )
 
     @Test
-    fun `test search functionality`() {
-        runBlocking {
-            val data = api.search(...)
-            assert(data.results.isNotEmpty())
-        }
+    fun `search returns results`() = runBlocking {
+        val response = api.search(
+            title = "test",
+            page = 1,
+            filters = api.filters,
+        )
+
+        assert(response.results.isNotEmpty())
     }
 }
 ```
 
 ## In-app testing
 
-The app includes built-in functionality to test your providers. For this to work effectively, ensure that the `testFilm` property in your `ProviderApi` class matches your API testing requirements.
+Flixclusive includes a built-in way to test a provider after deployment.
 
-The `testFilm` property holds the metadata of the film you want to test. By default, it uses [The Godfather (1972)](https://github.com/flixclusiveorg/core-stubs/blob/master/provider/src/main/kotlin/com/flixclusive/provider/util/DefaultTestFilm.kt).
+1. Build/package your provider:
+   ```bash
+   ./gradlew :TestProvider:make
+   ```
+2. Deploy to device/emulator:
+   ```bash
+   ./gradlew :TestProvider:deployWithAdb
+   ```
 
-```kotlin
-import com.flixclusive.model.film.DEFAULT_FILM_SOURCE_NAME
-import com.flixclusive.model.film.FilmDetails
-import com.flixclusive.model.film.Movie
-import com.flixclusive.provider.Provider
-import com.flixclusive.provider.ProviderApi
-import okhttp3.OkHttpClient
-// ...
- 
-class TestProviderApi(
-    client: OkHttpClient,
-    provider: Provider
-) : ProviderApi(client, provider) {
-    override val testFilm: FilmDetails 
-        = Movie(
-            id = "238",
-            tmdbId = 238,
-            imdbId = "tt0068646",
-            title = "The Godfather",
-            rating = 8.691,
-            year = 1972,
-            homePage = "http://www.thegodfather.com/",
-            releaseDate = "1972-03-14",
-            backdropImage = "https://image.tmdb.org/t/p/w1280/tmU7GeKVybMWFButWEGl2M4GeiP.jpg",
-            posterImage = "https://image.tmdb.org/t/p/w500/tmU7GeKVybMWFButWEGl2M4GeiP.jpg",
-            providerName = DEFAULT_FILM_SOURCE_NAME,
-            overview = "Spanning the years 1945 to 1955, a chronicle of the fictional Italian-American Corleone crime family. When organized crime family patriarch, Vito Corleone barely survives an attempt on his life, his youngest son, Michael steps in to take care of the would-be killers, launching a campaign of bloody revenge.",
-        )
+If you are using the debug build of the app:
 
-    // ...
-}
+```bash
+./gradlew :TestProvider:deployWithAdb --debug-app
 ```
 
+If you want to attach a debugger:
+
+```bash
+./gradlew :TestProvider:deployWithAdb --wait-for-debugger
+```
+
+### Legacy `ProviderApi.testFilm` (optional)
+
+If your provider still implements the deprecated `ProviderApi` via `ProviderPlugin.getApi(context, client)`,
+you can customize the `testFilm` used by older test flows.
+
+For new providers, prefer ensuring your capability APIs behave correctly for at least one known title/ID.
+
 ## Debugging tips
-- Use the [debugging development guide](/getting-started/development#debugging) and Android Studio's debugger to step through your provider's code and
-- Use built-in logging utilities from [`com.flixclusive.core.util.log`](https://flixclusiveorg.github.io/core-stubs/core-util/com.flixclusive.core.util.log/index.html):
+
+- Use Android Studio’s debugger with `--wait-for-debugger`.
+- Prefer deterministic failures (throw clear exceptions) over silent empty results.
+- Use built-in logging utilities from `com.flixclusive.core.util.log`:
+
 ```kotlin
 // Debug logs
 debugLog("Loading search results...")
-debugLog(searchResult) // Logs any object
+
+takeIf { response.results.isEmpty() }?.let {
+    warnLog("Search returned no results")
+}
 
 // Error logs
-errorLog("Failed to fetch results")
-errorLog(exception) // Logs stack trace
-
-// Other log levels
-infoLog("Provider initialized")
-warnLog("Using fallback source")
-verboseLog("Request details")
-
-// TAG = FlixclusiveLog
+try {
+    // ...
+} catch (e: Exception) {
+    errorLog(e)
+}
 ```
-- Add network logging with OkHttp's interceptor:
-```kotlin
-client.newBuilder()
-    .addInterceptor(HttpLoggingInterceptor().apply { 
-        level = HttpLoggingInterceptor.Level.BODY 
-    })
-```
-
-For a more comprehensive testing guide, refer to the [Android Local Unit Testing Documentation](https://developer.android.com/training/testing/local-tests).

@@ -1,107 +1,101 @@
 # Fetching media links
 
-This guide will provide implementation tips for fetching media links from your providers. 
+This guide covers implementing `MediaLinkProviderApi` to emit streams and/or subtitles.
 
-It also assumes that you've:
-- Read previous guides that has TMDB API examples.
-- Got knowledge on basic scraping.
+It assumes you already have:
+
+- A `FilmMetadata` object (from `MetadataProviderApi`)
+- Basic scraping knowledge (for HTML-based sources)
 
 ## Overview
 
-Media links represent sources or links that are used for media content. The `ProviderApi` class includes the essential `getLinks` method for fetching media content:
+Media links represent sources the host can play (streams) or load (subtitles). In the capability-first SDK, links are produced as a `Flow<MediaLink>`:
 
 ```kotlin
-class TestProviderApi(
-    client: OkHttpClient,
-    provider: Provider
-) : ProviderApi(client, provider) {
-    override suspend fun getLinks(
-        watchId: String,
-        film: FilmDetails,
+class TestMediaLinkApi(
+    private val client: OkHttpClient,
+) : MediaLinkProviderApi {
+    override val provides: Set<MediaLinkType> = setOf(
+        MediaLinkType.STREAMS,
+        // MediaLinkType.SUBTITLES,
+    )
+
+    override fun getLinks(
+        film: FilmMetadata,
         episode: Episode?,
-        onLinkFound: (MediaLink) -> Unit
-    ) {
-        // Implementation
+    ): Flow<MediaLink> {
+        // return flow { emit(...) }
     }
 }
 ```
 
 ### MediaLink
 
-The `MediaLink` class is a sealed class that represents either a `Stream` or `Subtitle` source. It contains essential information needed for media playback.
+`MediaLink` is a sealed type:
 
-| Property | Description |
-|----------|-------------|
-| `name` | The name/label of the media link. |
-| `url` | The URL to the media source. |
-| `flags` | Set of constraint flags (e.g., IP restrictions, expiration). |
-| `description` | Optional description of the media link. |
-| `customHeaders` | A map of custom headers required if `RequiresAuth` flag is present. |
+- `Stream`: a playable stream URL
+- `Subtitle`: a subtitle URL + language
 
-For more information, check out the following references: 
-- [Flag](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider.link/-flag/index.html)
-- [MediaLink](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider.link/-media-link/index.html)
+Flags (`Flag`) allow you to declare constraints (auth, geo restrictions, third-party gateways, etc.).
 
-## Example using TMDB
+References:
+
+- [MediaLink API reference](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider.link/-media-link/)
+- [Flag API reference](https://flixclusiveorg.github.io/core-stubs/model-provider/com.flixclusive.model.provider.link/-flag/)
+
+## Example (scraping TMDB watch providers)
+
+This example scrapes TMDB’s “watch providers” page and emits `Stream` links.
 
 <Steps>
     <Steps.Step>
-        ### Override the getLinks method
+        ### Override `getLinks(...)`
 
-        Override the `getLinks` method in your `ProviderApi` class.
-
-        <Tip>
-            In Android Studio, `Ctrl + O` is the shortcut key for overriding methods and properties.
-        </Tip>
+        Implement `getLinks(...)` using a `flow { ... }` builder and emit as soon as each link is discovered.
 
         ```kotlin
-        override suspend fun getLinks(
-            watchId: String,
-            film: FilmDetails,
+        override fun getLinks(
+            film: FilmMetadata,
             episode: Episode?,
-            onLinkFound: (MediaLink) -> Unit
-        ) {
+        ): Flow<MediaLink> = flow {
             // TODO
         }
         ```
+
+        <Tip>
+            Prefer streaming results (multiple `emit(...)` calls) instead of buffering everything in memory.
+        </Tip>
     </Steps.Step>
     <Steps.Step>
-        ### Get watch providers from TMDB API
+        ### Fetch + parse HTML
 
-        Create methods to handle the actual link fetching:
+        Use `OkHttpClient.request(...)` and `Response.asJsoup()`.
 
         ```kotlin
         val mediaType = film.filmType.type
-        val id = watchId // or film.tmdbId
-
         require(mediaType == "movie" || mediaType == "tv") {
             "Invalid media type: $mediaType"
         }
 
-        val response = withIOContext {
+        val id = film.externalIds[FilmIdSource.TMDB] ?: film.id
+
+        val response = FlxDispatchers.withIOContext {
             client.request(
-                url = "https://www.themoviedb.org/${mediaType}/${id}/watch?locale=US"
+                url = "https://www.themoviedb.org/${mediaType}/${id}/watch?locale=US",
             ).execute()
         }
 
+        val html = response.asJsoup()
         ```
+
         <Tip>
-            The quick dispatcher method `withIOContext` make development easier and faster. Check out [convenience methods for coroutines](https://flixclusiveorg.github.io/core-stubs/core-util/com.flixclusive.core.util.coroutines/index.html).
+            `withIOContext { ... }` is available via [FlxDispatchers](https://flixclusiveorg.github.io/core-stubs/core-util/com.flixclusive.core.util.coroutines/).
         </Tip>
     </Steps.Step>
     <Steps.Step>
-        ### Parse response as HTML
+        ### Scrape providers + emit streams
 
-        Use the convenient method `Response.asJsoup()` to parse a `Response` object to an HTML one.
-
-        ```kotlin
-        val html = response.asJsoup()
-        ```
-    </Steps.Step>
-    <Steps.Step>
-        ### Scrape from HTML
-
-        With the help of Jsoup, it'll be easy to scrape the providers from the HTML code. Since TMDB provide legitimate and trusted providers, the `Flag.Trusted` will be useful here.
+        For each provider entry, decode the redirect target and emit a `Stream`.
 
         ```kotlin
         html.select("div.ott_provider li a").forEach { element ->
@@ -109,19 +103,23 @@ For more information, check out the following references:
             val title = element.attr("title")
             val logoUrl = element.select("img").attr("src")
 
-            var providerName = title.split(" on ").lastOrNull()?.trim()
-            if (providerName == null) {
-                providerName = "Unknown Provider"
-            }
+            val providerName = title
+                .split(" on ")
+                .lastOrNull()
+                ?.trim()
+                .orEmpty()
+                .ifBlank { "Unknown Provider" }
 
-            // Extract the URL from the 'r' parameter in the href
-            val url = href.split("&r=").getOrNull(1)
+            val url = href
+                .split("&r=")
+                .getOrNull(1)
                 ?.split("&")
                 ?.firstOrNull()
 
             if (url != null) {
                 val decodedUrl = URLDecoder.decode(url, "UTF-8")
-                onLinkFound(
+
+                emit(
                     Stream(
                         name = providerName,
                         description = title,
@@ -129,16 +127,18 @@ For more information, check out the following references:
                         flags = setOf(
                             Flag.Trusted(
                                 name = providerName,
-                                logo = logoUrl
-                            )
-                        )
-                    )
+                                logo = logoUrl,
+                            ),
+                        ),
+                    ),
                 )
             }
         }
         ```
 
-        For more information about Jsoup, check its [documentation](https://jsoup.org/apidocs/).
+        <Note>
+            This is just an example scraper. Real providers typically scrape their own streaming sites.
+        </Note>
     </Steps.Step>
 </Steps>
 
@@ -146,63 +146,67 @@ For more information, check out the following references:
 
 <Important>
     Remember:
-    - The `onLinkFound` callback should be called as soon as each link is found.
-    - Both `Stream`s and `Subtitle`s are handled through the same callback.
-    - `Flag`s should be used to indicate any special requirements (auth, geo-restrictions, etc.).
+    - Emit links as soon as you find them.
+    - Use `provides` to declare what you emit (`STREAMS`, `SUBTITLES`, or both).
+    - Use `Flag`s to signal auth, geo restrictions, or third-party gateways.
 </Important>
 
 ```kotlin
-override suspend fun getLinks(
-    watchId: String,
-    film: FilmDetails,
-    episode: Episode?,
-    onLinkFound: (MediaLink) -> Unit
-) {
-    val mediaType = film.filmType.type
-    val id = film.tmdbId
-    
-    require(mediaType == "movie" || mediaType == "tv") {
-        "Invalid media type: $mediaType"
-    }
-    
-    val response = withIOContext {
-        client.request(
-            url = "https://www.themoviedb.org/${mediaType}/${id}/watch?locale=US"
-        ).execute()
-    }
+class TestMediaLinkApi(
+    private val client: OkHttpClient,
+) : MediaLinkProviderApi {
+    override val provides: Set<MediaLinkType> = setOf(MediaLinkType.STREAMS)
 
-    val html = response.asJsoup()
-    
-    html.select("div.ott_provider li a").forEach { element ->
-        val href = element.attr("href")
-        val title = element.attr("title")
-        val logoUrl = element.select("img").attr("src")
-    
-        var providerName = title.split(" on ").lastOrNull()?.trim()
-        if (providerName == null) {
-            providerName = "Unknown Provider"
+    override fun getLinks(
+        film: FilmMetadata,
+        episode: Episode?,
+    ): Flow<MediaLink> = flow {
+        val mediaType = film.filmType.type
+        val id = film.externalIds[FilmIdSource.TMDB] ?: film.id
+
+        val response = FlxDispatchers.withIOContext {
+            client.request(
+                url = "https://www.themoviedb.org/${mediaType}/${id}/watch?locale=US",
+            ).execute()
         }
 
-        // Extract the URL from the 'r' parameter in the href
-        val url = href.split("&r=").getOrNull(1)
-            ?.split("&")
-            ?.firstOrNull()
+        val html = response.asJsoup()
 
-        if (url != null) {
-            val decodedUrl = URLDecoder.decode(url, "UTF-8")
-            onLinkFound(
-                Stream(
-                    name = providerName,
-                    description = title,
-                    url = decodedUrl,
-                    flags = setOf(
-                        Flag.Trusted(
-                            name = providerName,
-                            logo = logoUrl
-                        )
+        html.select("div.ott_provider li a").forEach { element ->
+            val href = element.attr("href")
+            val title = element.attr("title")
+            val logoUrl = element.select("img").attr("src")
+
+            val providerName = title
+                .split(" on ")
+                .lastOrNull()
+                ?.trim()
+                .orEmpty()
+                .ifBlank { "Unknown Provider" }
+
+            val url = href
+                .split("&r=")
+                .getOrNull(1)
+                ?.split("&")
+                ?.firstOrNull()
+
+            if (url != null) {
+                val decodedUrl = URLDecoder.decode(url, "UTF-8")
+
+                emit(
+                    Stream(
+                        name = providerName,
+                        description = title,
+                        url = decodedUrl,
+                        flags = setOf(
+                            Flag.Trusted(
+                                name = providerName,
+                                logo = logoUrl,
+                            ),
+                        ),
                     )
                 )
-            )
+            }
         }
     }
 }

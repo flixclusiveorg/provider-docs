@@ -1,33 +1,30 @@
 # Unsupported libraries
 
 <Caution>
-    This is an experimental feature and should be used with caution. Consider alternatives before adding external libraries this way.
+    Treat this section as a packaging rule, not a special escape hatch.
+    The template no longer uses `fatImplementation`.
 </Caution>
 
-This guide provides information how to include libraries that the app doesn't use.
+This guide explains how to add libraries that your provider needs.
 
 ## Configuration
 
-To include external libraries that aren't part of the main application, you'll need to use the `fatImplementation` configuration instead of the standard `implementation` in your Gradle build file.
-
-For instance, using 
+Use `implementation(...)` when the dependency must be packaged with the provider artifact.
+Use `compileOnly(...)` when the host app/runtime already provides the dependency.
 
 ```kotlin
 dependencies {
-    // DON'T use this
-    // implementation("com.example.network:NetworkClient:1.0.0")
-    
-    // Instead, use fatImplementation
-    fatImplementation("com.example.network:NetworkClient:1.0.0")
+    // Packaged inside the provider artifact
+    implementation("com.example.network:NetworkClient:1.0.0")
+
+    // Only available at compile time because the host provides it
+    compileOnly("org.jsoup:jsoup:1.18.1")
 }
 ```
 
 ## Important notes
 
-- The `fatImplementation` configuration ensures that the library and its dependencies are properly bundled with the package that the gradle command, `:make`, creates.
-- Using `fatImplementation` will increase your provider's file size and build time.
-- Some libraries might not work correctly when bundled this way.
-- Using the standard `implementation` configuration may result in runtime errors such as:
-  - `ClassNotFoundException`
-  - `MethodNotFoundException`
-  - `NoClassDefFoundError`
+- `implementation(...)` is the default choice for bundled dependencies.
+- `compileOnly(...)` keeps the artifact smaller when the library is already available in the host.
+- Avoid adding duplicate copies of libraries the app already ships with.
+- If you see runtime errors such as `ClassNotFoundException` or `NoClassDefFoundError`, check whether the library belongs in `implementation(...)` or `compileOnly(...)`.
