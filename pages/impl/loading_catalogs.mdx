@@ -28,7 +28,7 @@ class TestProviderPlugin : ProviderPlugin() {
 
 `CatalogProviderApi` has two key pieces:
 
-- `getCatalogs()`: returns a `ProviderCatalogList` asynchronously
+- `getCatalogs()`: returns a `List<ProviderCatalog>` asynchronously
 - `getCatalogItems(...)`: loads items for a specific catalog + page
 
 ```kotlin
@@ -37,9 +37,7 @@ class TestCatalogApi(
     private val providerId: String,
     private val tmdbApiKey: String,
 ) : CatalogProviderApi {
-    override suspend fun getCatalogs(): ProviderCatalogList = ProviderCatalogList(
-        // ...
-    )
+    override suspend fun getCatalogs(): List<ProviderCatalog> = emptyList()
 
     override suspend fun getCatalogItems(
         catalog: ProviderCatalog,
@@ -58,6 +56,7 @@ A `ProviderCatalog` describes a catalog entry.
 |---|---|
 | `name` | Display name shown in the host UI. |
 | `url` | Endpoint (or resolvable URL) used to load items for this catalog. |
+| `mediaType` | Whether this catalog represents movies or TV shows (`FilmType`). |
 | `canPaginate` | Whether the host should show “Load more”. |
 | `image` | Optional image/icon for the catalog. |
 | `providerId` | The provider id that owns this catalog. |
@@ -83,6 +82,7 @@ In this section, TMDB’s discover endpoints are used as an example.
         private val trendingMovies = ProviderCatalog(
             name = "Trending Movies",
             url = "https://api.themoviedb.org/3/discover/movie",
+            mediaType = FilmType.MOVIE,
             canPaginate = true,
             providerId = providerId,
             description = "Popular movies right now",
@@ -91,17 +91,15 @@ In this section, TMDB’s discover endpoints are used as an example.
         private val popularTvShows = ProviderCatalog(
             name = "Popular TV Shows",
             url = "https://api.themoviedb.org/3/discover/tv",
+            mediaType = FilmType.TV_SHOW,
             canPaginate = true,
             image = "https://api.themoviedb.org/sample_icon.png",
             providerId = providerId,
         )
 
-        override suspend fun getCatalogs(): ProviderCatalogList = ProviderCatalogList(
-            ProviderCatalogGroup(
-                name = "Home",
-                trendingMovies,
-                popularTvShows,
-            )
+        override suspend fun getCatalogs(): List<ProviderCatalog> = listOf(
+            trendingMovies,
+            popularTvShows,
         )
         ```
     </Steps.Step>
@@ -128,11 +126,7 @@ In this section, TMDB’s discover endpoints are used as an example.
                 .execute()
                 .fromJson<TmdbSearchResponseDto>()
 
-            val forcedType = when (catalog.url.substringAfterLast("/")) {
-                "movie" -> FilmType.MOVIE
-                "tv" -> FilmType.TV_SHOW
-                else -> null
-            }
+            val forcedType = catalog.mediaType
 
             val results = dto.results
                 .mapNotNull { it.toFilmSearchItemOrNull(providerId = providerId, forcedType = forcedType) }
@@ -164,6 +158,7 @@ class TestCatalogApi(
     private val trendingMovies = ProviderCatalog(
         name = "Trending Movies",
         url = "https://api.themoviedb.org/3/discover/movie",
+        mediaType = FilmType.MOVIE,
         canPaginate = true,
         providerId = providerId,
     )
@@ -171,16 +166,14 @@ class TestCatalogApi(
     private val popularTvShows = ProviderCatalog(
         name = "Popular TV Shows",
         url = "https://api.themoviedb.org/3/discover/tv",
+        mediaType = FilmType.TV_SHOW,
         canPaginate = true,
         providerId = providerId,
     )
 
-    override suspend fun getCatalogs(): ProviderCatalogList = ProviderCatalogList(
-        ProviderCatalogGroup(
-            name = "Home",
-            trendingMovies,
-            popularTvShows,
-        )
+    override suspend fun getCatalogs(): List<ProviderCatalog> = listOf(
+        trendingMovies,
+        popularTvShows,
     )
 
     override suspend fun getCatalogItems(
@@ -192,11 +185,7 @@ class TestCatalogApi(
             .execute()
             .fromJson<TmdbSearchResponseDto>()
 
-        val forcedType = when (catalog.url.substringAfterLast("/")) {
-            "movie" -> FilmType.MOVIE
-            "tv" -> FilmType.TV_SHOW
-            else -> null
-        }
+        val forcedType = catalog.mediaType
 
         val results = dto.results
             .mapNotNull { it.toFilmSearchItemOrNull(providerId = providerId, forcedType = forcedType) }

@@ -15,7 +15,7 @@ Media links represent sources the host can play (streams) or load (subtitles). I
 class TestMediaLinkApi(
     private val client: OkHttpClient,
 ) : MediaLinkProviderApi {
-    override val provides: Set<MediaLinkType> = setOf(
+    override val supportedLinkTypes: Set<MediaLinkType> = setOf(
         MediaLinkType.STREAMS,
         // MediaLinkType.SUBTITLES,
     )
@@ -147,7 +147,7 @@ This example scrapes TMDB’s “watch providers” page and emits `Stream` link
 <Important>
     Remember:
     - Emit links as soon as you find them.
-    - Use `provides` to declare what you emit (`STREAMS`, `SUBTITLES`, or both).
+    - Use `supportedLinkTypes` to declare what you emit (`STREAMS`, `SUBTITLES`, or both).
     - Use `Flag`s to signal auth, geo restrictions, or third-party gateways.
 </Important>
 
@@ -155,7 +155,7 @@ This example scrapes TMDB’s “watch providers” page and emits `Stream` link
 class TestMediaLinkApi(
     private val client: OkHttpClient,
 ) : MediaLinkProviderApi {
-    override val provides: Set<MediaLinkType> = setOf(MediaLinkType.STREAMS)
+    override val supportedLinkTypes: Set<MediaLinkType> = setOf(MediaLinkType.STREAMS)
 
     override fun getLinks(
         film: FilmMetadata,

@@ -22,7 +22,8 @@ class TestProviderPlugin : ProviderPlugin() {
 
 - `supportedIdSources` declares the exact source IDs you can resolve.
 - `getById(sourceIds)` performs deterministic matching from trusted IDs.
-- `getByFuzzy(title, sourceIds, filmType, year)` can be used as a fallback when exact IDs are missing.
+- `getByFuzzy(film)` can be used as a fallback when exact IDs are missing.
+    - The `film` input is assumed to come from another provider (not the provider implementing the API).
 
 API reference:
 
@@ -53,10 +54,7 @@ class TestCrossMatchApi(
     }
 
     override suspend fun getByFuzzy(
-        title: String,
-        sourceIds: Map<FilmIdSource, String>,
-        filmType: FilmType?,
-        year: Int?,
+        film: FilmMetadata,
     ): FilmMetadata? {
         return null
     }
